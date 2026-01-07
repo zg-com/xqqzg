@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>纠结终结者</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #2ed573;
+            --bg: #ffe2e2;
+            --text: #2f3542;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: '微软雅黑', sans-serif;
+            background-color: var(--bg);
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%; max-width: 400px;
+            padding: 20px; box-sizing: border-box;
+            text-align: center;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 30px; }
+
+        /* --- 转盘主体区域 --- */
+        .wheel-wrapper {
+            position: relative;
+            width: 300px; height: 300px;
+            margin: 0 auto 30px auto;
+        }
+
+        /* 指针 (绝对定位在最上方) */
+        .pointer {
+            position: absolute;
+            top: -20px; left: 50%;
+            transform: translateX(-50%);
+            width: 40px; height: 50px;
+            z-index: 10;
+            /* 用 CSS 画一个倒三角形 */
+            width: 0; height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid var(--primary);
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
+        }
+
+        /* 转盘圆盘 */
+        .wheel {
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            border: 8px solid #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            /* 关键：旋转动画的过渡效果，cubic-bezier 模拟先加速后减速的物理感 */
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+
+        /* 选项文字 (绝对定位到圆盘内部) */
+        .option-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform-origin: 0 0; /* 以左上角为基点旋转 */
+            font-weight: bold; font-size: 18px; color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            width: 100%; /* 宽度占满一半，方便居中 */
+            text-align: center;
+            padding-left: 40px; /*稍微往外推一点*/
+            box-sizing: border-box;
+        }
+
+        /* --- 输入控制区 --- */
+        .input-group {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .input-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .input-row span { font-size: 14px; color: #777; width: 60px; }
+        .input-row input {
+            flex: 1; padding: 8px 12px;
+            border: 2px solid #eee; border-radius: 8px;
+            outline: none; transition: 0.3s;
+        }
+        .input-row input:focus { border-color: var(--primary); }
+
+        /* --- 按钮 --- */
+        .btn-spin {
+            width: 100%; height: 50px;
+            border-radius: 25px;
+            border: none;
+            background: linear-gradient(135deg, #ff6b81, #ff4757);
+            color: white; font-size: 18px; font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3);
+            transition: transform 0.1s;
+        }
+        .btn-spin:active { transform: scale(0.95); }
+        .btn-spin:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        /* 结果弹窗 */
+        .result-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .result-modal.show { opacity: 1; pointer-events: auto; }
+        .result-card {
+            background: white; padding: 30px; border-radius: 20px;
+            text-align: center; width: 80%; max-width: 300px;
+            transform: scale(0.8); transition: transform 0.3s;
+        }
+        .result-modal.show .result-card { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+<div id="app" class="container">
+    <h1>🎡 命运的抉择 🎡</h1>
+
+    <div class="wheel-wrapper">
+        <div class="pointer"></div>
+        <div class="wheel" :style="wheelStyle">
+            <div class="option-text" style="transform: rotate(90deg) translate(0, -50%) rotate(0deg); top:0; left:0; height:100%; width:50%; display:flex; align-items:center; justify-content:center;">
+                {{ optionA }}
+            </div>
+            <div class="option-text" style="transform: rotate(270deg) translate(0, -50%) rotate(0deg); top:0; left:0; height:100%; width:50%; transform-origin:100% 50%; display:flex; align-items:center; justify-content:center;">
+                {{ optionB }}
+            </div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <div class="input-row">
+            <span>选项 A</span>
+            <input type="text" v-model="optionA" :disabled="isSpinning">
+        </div>
+        <div class="input-row">
+            <span>选项 B</span>
+            <input type="text" v-model="optionB" :disabled="isSpinning">
+        </div>
+    </div>
+
+    <button class="btn-spin" @click="startSpin" :disabled="isSpinning">
+        {{ isSpinning ? '听天由命中...' : '开始选择' }}
+    </button>
+
+    <div class="result-modal" :class="{ show: showResult }">
+        <div class="result-card">
+            <h2 style="color:var(--primary)">命运决定了！</h2>
+            <p style="font-size:24px; font-weight:bold; margin: 20px 0;">{{ finalResult }}</p>
+            <button class="btn-spin" @click="showResult = false" style="height:40px; font-size:14px;">这就去执行！</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            // 定义响应式数据
+            const optionA = ref('休息上午 ☀️');
+            const optionB = ref('休息下午 🌙');
+            
+            // 记录当前的旋转角度
+            const currentRotation = ref(0);
+            const isSpinning = ref(false);
+            const showResult = ref(false);
+            const finalResult = ref('');
+
+            // 计算属性：动态生成转盘的 CSS 样式
+            const wheelStyle = computed(() => {
+                return {
+                    // 1. 设置背景色：各占50%
+                    background: `conic-gradient(#ff9a9e 0% 50%, #a1c4fd 50% 100%)`,
+                    // 2. 控制旋转：绑定到 currentRotation 变量
+                    transform: `rotate(${currentRotation.value}deg)`
+                };
+            });
+
+            const startSpin = () => {
+                if(isSpinning.value) return;
+                isSpinning.value = true;
+                showResult.value = false;
+
+                // --- 核心算法 ---
+                // 1. 基础圈数：至少转 5 圈 (360 * 5)，显得很激烈
+                const basicSpins = 360 * 8; 
+                
+                // 2. 随机角度：0 到 360 度之间随机停
+                const randomAngle = Math.floor(Math.random() * 360);
+                
+                // 3. 算出目标总角度
+                // 技巧：必须累加在之前的角度上，不然转盘会倒着转回去
+                const targetRotation = currentRotation.value + basicSpins + randomAngle;
+                
+                // 4. 开始旋转
+                currentRotation.value = targetRotation;
+
+                // 5. 等待 CSS 动画结束 (4秒后) 计算结果
+                setTimeout(() => {
+                    calculateResult(targetRotation);
+                    isSpinning.value = false;
+                }, 4000);
+            };
+
+            const calculateResult = (finalAngle) => {
+                // 算法：取余数看最终停在 360 度的哪个位置
+                // 注意：由于指针在最上面（0度位置），而 CSS conic-gradient 是从 12点钟顺时针画的
+                // 0-180度 是 Option A (#ff9a9e)
+                // 180-360度 是 Option B (#a1c4fd)
+                // 但是！转盘是顺时针转，相当于指针是逆时针划过转盘。
+                // 我们可以简单通过余数来判断。
+                
+                const degrees = finalAngle % 360;
+                
+                // 这里的逻辑需要根据指针和转盘的相对位置微调
+                // 指针固定在顶部(0度)。转盘顺时针转了 degrees 度。
+                // 这意味着 360 - degrees 这个刻度对准了指针。
+                const stopAt = (360 - degrees) % 360;
+
+                if (stopAt > 0 && stopAt <= 180) {
+                    finalResult.value = optionA.value;
+                } else {
+                    finalResult.value = optionB.value;
+                }
+
+                // 撒花庆祝
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+
+                showResult.value = true;
+            };
+
+            return {
+                optionA, optionB,
+                wheelStyle,
+                startSpin,
+                isSpinning,
+                showResult,
+                finalResult
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
