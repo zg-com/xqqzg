@@ -90,7 +90,7 @@
                 <span style="color:#2d3436">{{ goal.title }}</span>
                 <span class="goal-val" :style="{color: goal.color || '#6c5ce7'}">
                     <template v-if="goal.type === 2">
-                        已坚持 {{ calculateDaysFrom(goal.startDate) }} 天
+                        在一起 {{ calculateDaysFrom(goal.startDate) }} 天
                     </template>
                     <template v-else>
                         {{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}
@@ -109,7 +109,7 @@
 
             <div class="goal-footer">
                 <template v-if="goal.type === 2">
-                   <span>纪念日模式</span>
+                   <span>完成度: {{ getPercent(goal) }}%</span>
                    <span>目标: {{ goal.targetVal }} 天</span>
                 </template>
                 <template v-else>
