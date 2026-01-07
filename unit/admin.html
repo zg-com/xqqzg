@@ -56,31 +56,22 @@
             <span>⚙️ 数据管理</span>
             <a href="../index.html" class="btn btn-back">⬅️ 回主页</a>
         </h1>
+        <!-- 经期 -->
         <div style="background:#fff0f3; padding:15px; border-radius:12px; margin-bottom:20px; border:1px solid #ffccd5;">
-            <h3 style="margin:0 0 10px 0; color:#ff7979; font-size:16px;">🩸 经期设置</h3>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <div class="form-group" style="flex:1">
-                    <label>经期颜色</label>
-                    <input type="color" v-model="periodConfig.periodColor">
-                </div>
-                <div class="form-group" style="flex:1">
-                    <label>预测颜色</label>
-                    <input type="color" v-model="periodConfig.predictColor">
-                </div>
-            </div>
+            <h3 style="margin:0 0 10px 0; color:#ff7979; font-size:16px;">🩸 经期算法设置</h3>
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1">
-                    <label>每次持续(天)</label>
-                    <input type="number" v-model="periodConfig.periodLength">
+                    <label>默认经期长度 (天)</label>
+                    <input type="number" v-model="periodConfig.periodLength" placeholder="默认7天">
                 </div>
                 <div class="form-group" style="flex:1">
-                    <label>平均周期(天)</label>
-                    <input type="number" v-model="periodConfig.cycleLength">
+                    <label>预测间隔 (结束后N天)</label>
+                    <input type="number" v-model="periodConfig.intervalDays" placeholder="例如20天">
                 </div>
             </div>
-            <button class="btn btn-save" style="width:100%; margin-top:5px;" @click="savePeriodConfig">保存配置</button>
+            <button class="btn btn-save" style="width:100%; margin-top:5px;" @click="savePeriodConfig">保存设置</button>
         </div>
-
+        <!-- 进度条项目设置 -->
         <div style="margin-bottom: 20px; text-align: right;">
             <button class="btn btn-add" @click="openModal()">+ 新建目标</button>
         </div>
