@@ -53,29 +53,45 @@
             filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
         }
 
-        /* 转盘圆盘 */
+        /* 轮盘 */
         .wheel {
+            position: relative;
             width: 100%; height: 100%;
             border-radius: 50%;
             border: 8px solid #fff;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            position: relative;
             overflow: hidden;
-            /* 关键：旋转动画的过渡效果，cubic-bezier 模拟先加速后减速的物理感 */
             transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
         }
 
-        /* 选项文字 (绝对定位到圆盘内部) */
+        /* --- 修复后的文字样式 --- */
         .option-text {
             position: absolute;
-            top: 50%; left: 50%;
-            transform-origin: 0 0; /* 以左上角为基点旋转 */
-            font-weight: bold; font-size: 18px; color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            width: 100%; /* 宽度占满一半，方便居中 */
-            text-align: center;
-            padding-left: 40px; /*稍微往外推一点*/
+            top: 50%;
+            left: 50%; /* 起点定在圆心 */
+            width: 50%; /* 宽度严格等于半径 */
+            height: 40px; /* 给一个固定高度方便居中 */
+            
+            /* 关键：以左侧中点(即圆心)为轴进行旋转 */
+            transform-origin: 0% 50%; 
+            
+            /* 内部排版：文字居中 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            /* 细节：padding-right 让文字不要贴着圆盘边缘，往里收一点 */
+            padding-right: 20px; 
             box-sizing: border-box;
+            
+            /* 文字样式 */
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            
+            /* 调试用：如果你还看不见，可以把下面这行注释解开，看看红框在哪里 */
+            /* border: 1px solid red; */
         }
 
         /* --- 输入控制区 --- */
@@ -128,6 +144,42 @@
             transform: scale(0.8); transition: transform 0.3s;
         }
         .result-modal.show .result-card { transform: scale(1); }
+        .label-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; /* 防止遮挡点击，虽然后面没点击事件 */
+            display: flex;
+            justify-content: center; /* 水平居中 */
+            padding-top: 20px; /* 文字离边缘的距离 */
+            box-sizing: border-box;
+        }
+        /* 选项A (右半圆)：背景是从0-50% (12点到6点)。中心在3点钟。
+        我们需要把容器旋转 90度，让它的“顶部”对准 3点钟方向。
+        */
+        .label-a {
+            transform: rotate(90deg); 
+        }
+
+        /* 选项B (左半圆)：背景是从50-100% (6点到12点)。中心在9点钟。
+        我们需要把容器旋转 270度 (或 -90度)，让它的“顶部”对准 9点钟方向。
+        */
+        .label-b {
+            transform: rotate(270deg);
+        }
+
+        /* 文字本体：因为容器旋转了，文字也会跟着歪。
+        如果希望文字是横着的（阅读方向），需要把文字反向转回来吗？
+        通常转盘文字是径向的（指向圆心），上面的代码会让文字头朝外，脚朝圆心，这是最自然的转盘排版。
+        */
+        .text-content {
+            font-weight: bold; 
+            color: white; 
+            font-size: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            max-width: 120px; /* 防止文字太长换行 */
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body>
@@ -138,12 +190,15 @@
     <div class="wheel-wrapper">
         <div class="pointer"></div>
         <div class="wheel" :style="wheelStyle">
-            <div class="option-text" style="transform: rotate(90deg) translate(0, -50%) rotate(0deg); top:0; left:0; height:100%; width:50%; display:flex; align-items:center; justify-content:center;">
-                {{ optionA }}
+            
+            <div class="label-container label-a">
+                <span class="text-content">{{ optionA }}</span>
             </div>
-            <div class="option-text" style="transform: rotate(270deg) translate(0, -50%) rotate(0deg); top:0; left:0; height:100%; width:50%; transform-origin:100% 50%; display:flex; align-items:center; justify-content:center;">
-                {{ optionB }}
+            
+            <div class="label-container label-b">
+                <span class="text-content">{{ optionB }}</span>
             </div>
+            
         </div>
     </div>
 
