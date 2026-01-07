@@ -6,36 +6,46 @@
     <title>小窝后台管理 ⚙️</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f1f2f6; padding: 20px; color: #2f3542; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f2f6; padding: 20px; color: #2f3542; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { margin-top: 0; color: #57606f; font-size: 22px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* 列表样式 */
         .item-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px dashed #dfe4ea; }
         .item-info { flex: 1; }
         .item-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; display: block; }
+        .item-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; color: white; background: #ccc;}
         .item-desc { color: #a4b0be; font-size: 12px; }
         .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; }
 
-        /* 按钮 */
         .btn { border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 5px; transition: 0.2s; }
         .btn-edit { background: #747d8c; color: white; }
         .btn-del { background: #ff6b81; color: white; }
         .btn-add { background: #2ed573; color: white; padding: 10px 20px; font-size: 14px; }
-        .btn-back { background: transparent; color: #57606f; border: 1px solid #ced6e0; }
+        .btn-back { background: transparent; color: #57606f; border: 1px solid #ced6e0; text-decoration: none;}
 
-        /* 弹窗 */
+        /* 弹窗样式 */
         .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .modal { background: white; width: 85%; max-width: 350px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #747d8c; }
-        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #dfe4ea; border-radius: 6px; }
-        /* 颜色选择器特别样式 */
-        input[type="color"] { height: 40px; padding: 2px; cursor: pointer; }
+        .modal { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #747d8c; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #dfe4ea; border-radius: 6px; font-size: 14px; }
+        input[type="color"] { height: 40px; padding: 2px; }
+
+        /* 类型选择器 */
+        .type-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .type-btn { flex: 1; padding: 10px; border: 2px solid #dfe4ea; border-radius: 8px; text-align: center; cursor: pointer; color: #a4b0be; font-weight: bold; }
+        .type-btn.active { border-color: #3742fa; color: #3742fa; background: #f1f2f6; }
+
+        /* 加减号控制器 */
+        .stepper { display: flex; gap: 5px; }
+        .stepper input { flex: 1; text-align: center; font-weight: bold; color: #2f3542; }
+        .stepper-btn { width: 40px; background: #dfe4ea; border: none; border-radius: 6px; font-size: 18px; cursor: pointer; color: #57606f; }
+        .stepper-btn:active { background: #ced6e0; }
+
         .modal-btns { margin-top: 20px; display: flex; gap: 10px; }
-        .btn-save { flex: 1; background: #3742fa; color: white; padding: 10px; }
-        .btn-cancel { flex: 1; background: #f1f2f6; color: #57606f; padding: 10px; }
+        .btn-save { flex: 1; background: #3742fa; color: white; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; border:none; cursor: pointer;}
+        .btn-cancel { flex: 1; background: #f1f2f6; color: #57606f; padding: 12px; border-radius: 8px; font-size: 16px; border:none; cursor: pointer;}
     </style>
 </head>
 <body>
@@ -51,15 +61,22 @@
             <button class="btn btn-add" @click="openModal()">+ 新建目标</button>
         </div>
 
-        <div v-if="loading">加载中...</div>
+        <div v-if="loading" style="text-align:center; color:#999">加载中...</div>
 
         <div class="item-row" v-for="item in list" :key="item.id">
             <div class="item-info">
                 <span class="item-title">
                     <span class="color-preview" :style="{background: item.color || '#ccc'}"></span>
                     {{ item.title }}
+                    <span class="item-tag" :style="{background: item.type === 2 ? '#ff9f43' : '#2ed573'}">
+                        {{ item.type === 2 ? '纪念日' : '累积' }}
+                    </span>
                 </span>
-                <span class="item-desc">
+                
+                <span class="item-desc" v-if="item.type === 2">
+                    起始: {{ item.startDate }} | 目标: {{ item.targetVal }} 天
+                </span>
+                <span class="item-desc" v-else>
                     进度: {{ item.currentVal }} / {{ item.targetVal }} {{ item.unit }}
                 </span>
             </div>
@@ -75,34 +92,65 @@
             <h3 style="margin-top:0">{{ form.id ? '编辑目标' : '新建目标' }}</h3>
             
             <div class="form-group">
-                <label>标题</label>
-                <input v-model="form.title" placeholder="例如：攒黄金">
-            </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <div class="form-group" style="flex:1">
-                    <label>当前值</label>
-                    <input type="number" v-model="form.currentVal" step="0.1">
+                <label>选择类型</label>
+                <div class="type-selector">
+                    <div class="type-btn" :class="{active: form.type === 1}" @click="form.type = 1">
+                        💰 数值累积<br><span style="font-size:10px;font-weight:normal">(攒黄金/存款)</span>
+                    </div>
+                    <div class="type-btn" :class="{active: form.type === 2}" @click="form.type = 2">
+                        📅 纪念日<br><span style="font-size:10px;font-weight:normal">(恋爱/戒烟)</span>
+                    </div>
                 </div>
-                <div class="form-group" style="flex:1">
-                    <label>目标值</label>
+            </div>
+
+            <div class="form-group">
+                <label>标题名称</label>
+                <input v-model="form.title" placeholder="例如：攒黄金 / 恋爱纪念日">
+            </div>
+
+            <div v-if="form.type === 2">
+                <div class="form-group">
+                    <label>起始日期 (从哪天开始)</label>
+                    <input type="date" v-model="form.startDate">
+                </div>
+                <div class="form-group">
+                    <label>下一个目标里程碑 (天)</label>
+                    <input type="number" v-model="form.targetVal" placeholder="例如：1000">
+                </div>
+            </div>
+
+            <div v-if="form.type === 1">
+                <div class="form-group">
+                    <label>当前进度 (支持加减微调)</label>
+                    <div class="stepper">
+                        <button class="stepper-btn" @click="adjustVal(-1)">-</button>
+                        <input type="number" v-model="form.currentVal" step="0.1">
+                        <button class="stepper-btn" @click="adjustVal(1)">+</button>
+                    </div>
+                    <div style="margin-top:5px; display:flex; gap:5px;">
+                         <button class="btn" style="background:#eee" @click="adjustVal(10)">+10</button>
+                         <button class="btn" style="background:#eee" @click="adjustVal(-10)">-10</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>目标总数</label>
                     <input type="number" v-model="form.targetVal" step="0.1">
                 </div>
             </div>
 
             <div class="form-group">
-                <label>单位</label>
-                <input v-model="form.unit" placeholder="克/天/个">
+                <label>单位 (选填)</label>
+                <input v-model="form.unit" placeholder="例如：克 / 元">
             </div>
 
             <div class="form-group">
-                <label>进度条颜色 (点击选择)</label>
+                <label>主题颜色</label>
                 <input type="color" v-model="form.color">
             </div>
 
             <div class="modal-btns">
-                <button class="btn btn-save" @click="save">保存</button>
-                <button class="btn btn-cancel" @click="showModal = false">取消</button>
+                <button class="btn-save" @click="save">保存提交</button>
+                <button class="btn-cancel" @click="showModal = false">取消</button>
             </div>
         </div>
     </div>
@@ -110,7 +158,6 @@
 
 <script>
     const { createApp, ref, onMounted } = Vue;
-    // ⚠️ 后端地址 (如果本地测试记得改 localhost)
     const API_BASE = 'https://darlingweb.onrender.com';
 
     createApp({
@@ -118,8 +165,19 @@
             const list = ref([]);
             const loading = ref(false);
             const showModal = ref(false);
-            // 默认颜色给个好看的紫色
-            const form = ref({ id: null, title: '', currentVal: 0, targetVal: 100, unit: '', color: '#6c5ce7' });
+            
+            // 默认表单数据
+            const defaultForm = { 
+                id: null, 
+                title: '', 
+                type: 1, // 默认为数值型
+                startDate: '', // 纪念日用
+                currentVal: 0, // 数值型用
+                targetVal: 100, 
+                unit: '', 
+                color: '#6c5ce7' 
+            };
+            const form = ref({ ...defaultForm });
 
             const loadData = async () => {
                 loading.value = true;
@@ -132,15 +190,35 @@
 
             const openModal = (item = null) => {
                 if (item) {
-                    form.value = { ...item }; // 复制对象
+                    form.value = { ...item };
+                    // 如果后端没存type，默认为1
+                    if(!form.value.type) form.value.type = 1;
                 } else {
-                    form.value = { id: null, title: '', currentVal: 0, targetVal: 100, unit: '', color: '#6c5ce7' };
+                    form.value = { ...defaultForm };
+                    // 设置日期默认值为今天，方便选择
+                    const today = new Date().toISOString().split('T')[0];
+                    form.value.startDate = today;
                 }
                 showModal.value = true;
             };
 
+            // 快捷加减功能
+            const adjustVal = (amount) => {
+                // 确保 currentVal 是数字
+                let val = parseFloat(form.value.currentVal) || 0;
+                val += amount;
+                // 保留2位小数，防止出现 0.1 + 0.2 = 0.3000004
+                form.value.currentVal = Math.round(val * 100) / 100;
+            };
+
             const save = async () => {
                 try {
+                    // 简单的校验
+                    if(form.value.type === 2 && !form.value.startDate) {
+                        alert("纪念日类型必须选择起始日期！");
+                        return;
+                    }
+
                     await fetch(`${API_BASE}/goals/save`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -161,7 +239,7 @@
 
             onMounted(loadData);
 
-            return { list, loading, showModal, form, openModal, save, deleteItem };
+            return { list, loading, showModal, form, openModal, save, deleteItem, adjustVal };
         }
     }).mount('#app');
 </script>

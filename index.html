@@ -20,7 +20,7 @@
         /* 隐藏的管理入口 */
         .admin-link {
             position: absolute; top: 15px; right: 15px;
-            text-decoration: none; font-size: 20px; opacity: 0.5;
+            text-decoration: none; font-size: 20px; opacity: 0.5; cursor: pointer;
         }
 
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -52,7 +52,6 @@
         .progress-bar { 
             height: 100%; border-radius: 6px; width: 0%; 
             transition: width 1.2s cubic-bezier(0.22, 0.61, 0.36, 1);
-            /* 增加一点光泽感 */
             background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
             background-size: 40px 40px;
         }
@@ -65,9 +64,8 @@
 <div id="app">
     <div class="hero">
         <a href="unit/admin.html" class="admin-link">⚙️</a>
-        
         <h1>Welcome Back ❤️</h1>
-        <p>今天是爱你的第 {{ daysInLove }} 天</p>
+        <p>今天是爱你的第 {{ calculateDaysFrom('2025-09-25') }} 天</p>
     </div>
 
     <div class="container">
@@ -91,7 +89,12 @@
             <div class="goal-header">
                 <span style="color:#2d3436">{{ goal.title }}</span>
                 <span class="goal-val" :style="{color: goal.color || '#6c5ce7'}">
-                    {{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}
+                    <template v-if="goal.type === 2">
+                        已坚持 {{ calculateDaysFrom(goal.startDate) }} 天
+                    </template>
+                    <template v-else>
+                        {{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}
+                    </template>
                 </span>
             </div>
             
@@ -105,8 +108,14 @@
             </div>
 
             <div class="goal-footer">
-                <span>完成度: {{ getPercent(goal) }}%</span>
-                <span>目标: {{ goal.targetVal }} {{ goal.unit }}</span>
+                <template v-if="goal.type === 2">
+                   <span>纪念日模式</span>
+                   <span>目标: {{ goal.targetVal }} 天</span>
+                </template>
+                <template v-else>
+                   <span>完成度: {{ getPercent(goal) }}%</span>
+                   <span>目标: {{ goal.targetVal }} {{ goal.unit }}</span>
+                </template>
             </div>
         </div>
     </div>
@@ -118,18 +127,18 @@
 
     createApp({
         setup() {
-            // 1. 日期逻辑：纯前端写死，不查数据库
-            // 2025年9月25日
-            const startData = new Date('2025-09-25'); 
-            const now = new Date();
-            // 这种计算方式会自动处理跨年、闰年
-            const daysInLove = Math.floor((now - startData) / (1000 * 60 * 60 * 24));
-            
-            // 如果还没到这一天，显示 0 或者预热天数
-            const displayDays = daysInLove < 0 ? 0 : daysInLove;
-
             const goals = ref([]);
             const loading = ref(true);
+
+            // 通用日期计算函数：计算 "从 dateStr 到今天" 过了多少天
+            const calculateDaysFrom = (dateStr) => {
+                if(!dateStr) return 0;
+                const start = new Date(dateStr);
+                const now = new Date();
+                // 算出时间差(毫秒)，转成天数，向下取整
+                const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+                return diff < 0 ? 0 : diff; // 如果还没开始，显示0
+            };
 
             const loadGoals = async () => {
                 try {
@@ -141,13 +150,24 @@
 
             const getPercent = (goal) => {
                 if(!goal.targetVal) return 0;
-                let p = (goal.currentVal / goal.targetVal) * 100;
+                
+                let current = 0;
+                // 分类讨论当前值
+                if (goal.type === 2) {
+                    // 纪念日：当前值 = 算出来的天数
+                    current = calculateDaysFrom(goal.startDate);
+                } else {
+                    // 累积型：当前值 = 数据库里的值
+                    current = goal.currentVal || 0;
+                }
+
+                let p = (current / goal.targetVal) * 100;
                 return p > 100 ? 100 : p.toFixed(1);
             };
 
             onMounted(loadGoals);
 
-            return { daysInLove: displayDays, goals, loading, getPercent };
+            return { goals, loading, getPercent, calculateDaysFrom };
         }
     }).mount('#app');
 </script>
