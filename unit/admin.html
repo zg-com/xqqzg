@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小窝后台管理 ⚙️</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f1f2f6; padding: 20px; color: #2f3542; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { margin-top: 0; color: #57606f; font-size: 22px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 列表样式 */
+        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px dashed #dfe4ea; }
+        .item-info { flex: 1; }
+        .item-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; display: block; }
+        .item-desc { color: #a4b0be; font-size: 12px; }
+        .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; }
+
+        /* 按钮 */
+        .btn { border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 5px; transition: 0.2s; }
+        .btn-edit { background: #747d8c; color: white; }
+        .btn-del { background: #ff6b81; color: white; }
+        .btn-add { background: #2ed573; color: white; padding: 10px 20px; font-size: 14px; }
+        .btn-back { background: transparent; color: #57606f; border: 1px solid #ced6e0; }
+
+        /* 弹窗 */
+        .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: white; width: 85%; max-width: 350px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #747d8c; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #dfe4ea; border-radius: 6px; }
+        /* 颜色选择器特别样式 */
+        input[type="color"] { height: 40px; padding: 2px; cursor: pointer; }
+        
+        .modal-btns { margin-top: 20px; display: flex; gap: 10px; }
+        .btn-save { flex: 1; background: #3742fa; color: white; padding: 10px; }
+        .btn-cancel { flex: 1; background: #f1f2f6; color: #57606f; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="container">
+        <h1>
+            <span>⚙️ 数据管理</span>
+            <a href="../index.html" class="btn btn-back">⬅️ 回主页</a>
+        </h1>
+
+        <div style="margin-bottom: 20px; text-align: right;">
+            <button class="btn btn-add" @click="openModal()">+ 新建目标</button>
+        </div>
+
+        <div v-if="loading">加载中...</div>
+
+        <div class="item-row" v-for="item in list" :key="item.id">
+            <div class="item-info">
+                <span class="item-title">
+                    <span class="color-preview" :style="{background: item.color || '#ccc'}"></span>
+                    {{ item.title }}
+                </span>
+                <span class="item-desc">
+                    进度: {{ item.currentVal }} / {{ item.targetVal }} {{ item.unit }}
+                </span>
+            </div>
+            <div>
+                <button class="btn btn-edit" @click="openModal(item)">编辑</button>
+                <button class="btn btn-del" @click="deleteItem(item.id)">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-mask" v-if="showModal">
+        <div class="modal">
+            <h3 style="margin-top:0">{{ form.id ? '编辑目标' : '新建目标' }}</h3>
+            
+            <div class="form-group">
+                <label>标题</label>
+                <input v-model="form.title" placeholder="例如：攒黄金">
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:1">
+                    <label>当前值</label>
+                    <input type="number" v-model="form.currentVal" step="0.1">
+                </div>
+                <div class="form-group" style="flex:1">
+                    <label>目标值</label>
+                    <input type="number" v-model="form.targetVal" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>单位</label>
+                <input v-model="form.unit" placeholder="克/天/个">
+            </div>
+
+            <div class="form-group">
+                <label>进度条颜色 (点击选择)</label>
+                <input type="color" v-model="form.color">
+            </div>
+
+            <div class="modal-btns">
+                <button class="btn btn-save" @click="save">保存</button>
+                <button class="btn btn-cancel" @click="showModal = false">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    // ⚠️ 后端地址 (如果本地测试记得改 localhost)
+    const API_BASE = 'https://darlingweb.onrender.com';
+
+    createApp({
+        setup() {
+            const list = ref([]);
+            const loading = ref(false);
+            const showModal = ref(false);
+            // 默认颜色给个好看的紫色
+            const form = ref({ id: null, title: '', currentVal: 0, targetVal: 100, unit: '', color: '#6c5ce7' });
+
+            const loadData = async () => {
+                loading.value = true;
+                try {
+                    const res = await fetch(`${API_BASE}/goals/list`);
+                    list.value = await res.json();
+                } catch(e) { alert("加载失败，请检查后端"); }
+                loading.value = false;
+            };
+
+            const openModal = (item = null) => {
+                if (item) {
+                    form.value = { ...item }; // 复制对象
+                } else {
+                    form.value = { id: null, title: '', currentVal: 0, targetVal: 100, unit: '', color: '#6c5ce7' };
+                }
+                showModal.value = true;
+            };
+
+            const save = async () => {
+                try {
+                    await fetch(`${API_BASE}/goals/save`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(form.value)
+                    });
+                    showModal.value = false;
+                    loadData();
+                } catch(e) { alert("保存失败"); }
+            };
+
+            const deleteItem = async (id) => {
+                if(!confirm("确定删除吗？")) return;
+                try {
+                    await fetch(`${API_BASE}/goals/delete/${id}`, { method: 'POST' });
+                    loadData();
+                } catch(e) { alert("删除失败"); }
+            };
+
+            onMounted(loadData);
+
+            return { list, loading, showModal, form, openModal, save, deleteItem };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

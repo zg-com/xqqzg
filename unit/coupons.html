@@ -3,91 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>专属兑换券</title>
+    <title>我们的温馨小窝 🏠</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        :root { --primary: #ff9a9e; --bg: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%); }
-        body { font-family: '微软雅黑', sans-serif; margin: 0; padding: 20px; background-image: var(--bg); min-height: 100vh; text-align: center; }
-        
-        .header { margin-bottom: 30px; }
-        .header h1 { color: #555; font-size: 24px; }
-        
-        .coupon-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        
-        .coupon {
-            background: white; width: 150px; height: 200px; border-radius: 16px;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: 0.3s; cursor: pointer;
-            position: relative; overflow: hidden;
+        /* --- 样式部分保持不变 --- */
+        :root {
+            --primary: #6c5ce7;
+            --bg: #f8f9fd;
+            --card-bg: #ffffff;
         }
-        .coupon::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 8px;
-            background: var(--primary);
+        body { margin: 0; padding: 0; font-family: 'PingFang SC', sans-serif; background: var(--bg); color: #2d3436; }
+        
+        /* 顶部大卡片 */
+        .hero {
+            background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+            padding: 40px 20px; color: white; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px;
+            box-shadow: 0 10px 20px rgba(161, 140, 209, 0.3); text-align: center;
         }
-        .coupon:active { transform: scale(0.95); }
+        .hero h1 { margin: 0; font-size: 26px; }
+        .hero p { opacity: 0.9; margin-top: 10px; font-size: 14px; }
 
-        .icon { font-size: 48px; margin-bottom: 10px; }
-        .title { font-weight: bold; color: #333; margin-bottom: 5px; }
-        .count { font-size: 13px; color: #999; background: #f5f5f5; padding: 4px 10px; border-radius: 20px; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
 
-        .back-btn {
-            position: fixed; top: 20px; left: 20px;
-            text-decoration: none; color: #666; font-weight: bold;
-            background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        /* --- 导航网格 --- */
+        .nav-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+            transform: translateY(-30px); margin-bottom: 0;
         }
+        .nav-item {
+            background: white; border-radius: 16px; padding: 15px 10px;
+            text-align: center; text-decoration: none; color: #333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .nav-item:active { transform: scale(0.95); }
+        .nav-icon { font-size: 28px; margin-bottom: 5px; }
+        .nav-text { font-size: 13px; font-weight: bold; }
+
+        /* --- 进度条卡片 --- */
+        .section-title { font-weight: bold; font-size: 18px; margin: 20px 0 15px; display: flex; justify-content: space-between; align-items: center; }
+        .add-btn { font-size: 12px; background: #dfe6e9; padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+        
+        .goal-card {
+            background: white; border-radius: 16px; padding: 20px;
+            margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            position: relative;
+        }
+        
+        .goal-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+        .goal-val { color: var(--primary); }
+        
+        .progress-bg { height: 10px; background: #f1f2f6; border-radius: 5px; overflow: hidden; position: relative; }
+        .progress-bar { 
+            height: 100%; background: linear-gradient(90deg, #6c5ce7, #a29bfe); 
+            border-radius: 5px; width: 0%; transition: width 1s ease;
+        }
+        
+        .goal-footer { 
+            margin-top: 8px; font-size: 12px; color: #b2bec3; 
+            display: flex; justify-content: space-between; 
+        }
+
+        /* 简单的操作按钮 */
+        .action-row { margin-top: 15px; text-align: right; border-top: 1px dashed #eee; padding-top: 10px; }
+        .sm-btn { font-size: 12px; color: #636e72; margin-left: 10px; cursor: pointer; }
+
+        /* --- 弹窗样式 --- */
+        .modal-mask {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 999;
+        }
+        .modal { background: white; padding: 20px; border-radius: 16px; width: 80%; max-width: 320px; }
+        .form-item { margin-bottom: 15px; }
+        .form-item label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; }
+        .form-item input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-submit { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; }
+        .btn-close { width: 100%; padding: 10px; background: #f1f2f6; color: #666; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer;}
     </style>
 </head>
 <body>
-    <a href="../index.html" class="back-btn">⬅️ 返回首页</a>
 
-    <div id="app">
-        <div class="header">
-            <h1>🎟️ 权益兑换中心</h1>
-            <p style="color:#888; font-size:14px;">点击即可使用，概不退还哦~</p>
+<div id="app">
+    <div class="hero">
+        <h1>Welcome Back ❤️</h1>
+        <p>今天是爱你的第 {{ daysInLove }} 天</p>
+    </div>
+
+    <div class="container">
+        <div class="nav-grid">
+            <a href="unit/coupons.html" class="nav-item">
+                <span class="nav-icon">🎟️</span>
+                <span class="nav-text">兑换券</span>
+            </a>
+            <a href="unit/decision.html" class="nav-item">
+                <span class="nav-icon">🎡</span>
+                <span class="nav-text">帮我选</span>
+            </a>
+            <a href="unit/daoqian.html" class="nav-item">
+                <span class="nav-icon">🥺</span>
+                <span class="nav-text">小剧场</span>
+            </a>
         </div>
 
-        <div v-if="loading">加载中...</div>
-        <div class="coupon-container" v-else>
-            <div class="coupon" v-for="item in list" :key="item.id" @click="useCoupon(item.id)">
-                <div class="icon">{{ item.icon }}</div>
-                <div class="title">{{ item.title }}</div>
-                <div class="count">剩余 {{ item.count }} 次</div>
+        <div class="section-title">
+            <span>📈 我们的成长计划</span>
+            <span class="add-btn" @click="openModal()">+ 新建</span>
+        </div>
+
+        <div v-if="loading" style="text-align:center; padding:20px; color:#999;">
+            正在加载数据...
+        </div>
+
+        <div v-if="!loading && goals.length === 0" style="text-align:center; color:#ccc; padding:20px;">
+            还没有定小目标哦，点击右上角“新建”添加一个吧~
+        </div>
+
+        <div class="goal-card" v-for="goal in goals" :key="goal.id">
+            <div class="goal-header">
+                <span>{{ goal.title }}</span>
+                <span class="goal-val">{{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}</span>
+            </div>
+            
+            <div class="progress-bg">
+                <div class="progress-bar" :style="{ width: getPercent(goal) + '%' }"></div>
+            </div>
+
+            <div class="goal-footer">
+                <span>进度: {{ getPercent(goal) }}%</span>
+                <span>目标: {{ goal.targetVal }} {{ goal.unit }}</span>
+            </div>
+
+            <div class="action-row">
+                <span class="sm-btn" @click="openModal(goal)">✏️ 更新</span>
+                <span class="sm-btn" @click="deleteGoal(goal.id)" style="color:#ff7675;">🗑️ 删除</span>
             </div>
         </div>
     </div>
 
-    <script>
-        const { createApp, ref, onMounted } = Vue;
-        // 注意：这里要把 localhost 换成你实际部署的后端地址
-        const API_BASE = 'https://darlingweb.onrender.com'; 
+    <div class="modal-mask" v-if="showModal" @click.self="showModal=false">
+        <div class="modal">
+            <h3 style="margin-top:0">{{ form.id ? '更新进度' : '新建目标' }}</h3>
+            
+            <div class="form-item">
+                <label>目标名称</label>
+                <input v-model="form.title" placeholder="例如：攒黄金">
+            </div>
+            <div class="form-item">
+                <label>当前数值</label>
+                <input type="number" v-model="form.currentVal" placeholder="0" step="0.1">
+            </div>
+            <div class="form-item">
+                <label>目标总数</label>
+                <input type="number" v-model="form.targetVal" placeholder="100" step="0.1">
+            </div>
+            <div class="form-item">
+                <label>单位</label>
+                <input v-model="form.unit" placeholder="例如：克/天/个">
+            </div>
 
-        createApp({
-            setup() {
-                const list = ref([]);
-                const loading = ref(true);
+            <button class="btn-submit" @click="submitForm">保存提交</button>
+            <button class="btn-close" @click="showModal=false">取消</button>
+        </div>
+    </div>
+</div>
 
-                const loadData = async () => {
-                    try {
-                        const res = await fetch(`${API_BASE}/coupons`);
-                        list.value = await res.json();
-                        loading.value = false;
-                    } catch(e) { console.error(e); }
-                };
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    
+    // ✅ 你的真实后端地址
+    const API_BASE = 'https://darlingweb.onrender.com';
 
-                const useCoupon = async (id) => {
-                    if(!confirm("确定要核销这张券吗？")) return;
-                    try {
-                        const res = await fetch(`${API_BASE}/coupons/${id}/use`, { method: 'POST' });
-                        alert(await res.text());
-                        loadData(); // 刷新
-                    } catch(e) { alert("网络错误"); }
-                };
+    createApp({
+        setup() {
+            // --- 日期逻辑 ---
+            // 修改这里为你们在一起的日期，格式 YYYY-MM-DD
+            const startData = new Date('2025-09-25'); 
+            const now = new Date();
+            const daysInLove = Math.floor((now - startData) / (1000 * 60 * 60 * 24));
 
-                onMounted(loadData);
-                return { list, loading, useCoupon };
-            }
-        }).mount('#app');
-    </script>
+            // --- 数据定义 ---
+            const goals = ref([]);
+            const loading = ref(true);
+            const showModal = ref(false);
+            const form = ref({ id: null, title: '', currentVal: 0, targetVal: 100, unit: '' });
+
+            // 1. 获取列表 (READ)
+            const loadGoals = async () => {
+                loading.value = true;
+                try {
+                    // 发送 GET 请求到 /goals/list
+                    const res = await fetch(`${API_BASE}/goals/list`);
+                    if (res.ok) {
+                        goals.value = await res.json();
+                    } else {
+                        console.error("后端返回错误:", res.status);
+                    }
+                } catch(e) { 
+                    console.error("网络请求失败:", e);
+                    // 这里不再使用假数据，失败就是失败，方便你调试
+                    alert("无法连接到服务器，请检查后端是否部署成功");
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            // 2. 提交保存 (CREATE / UPDATE)
+            const submitForm = async () => {
+                if(!form.value.title) { alert("标题不能为空哦"); return; }
+                
+                try {
+                    // 发送 POST 请求到 /goals/save
+                    // 后端会自动判断：如果有 id 就是更新，没 id 就是新增
+                    const res = await fetch(`${API_BASE}/goals/save`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(form.value)
+                    });
+
+                    if(res.ok) {
+                        alert("保存成功！");
+                        showModal.value = false;
+                        loadGoals(); // 刷新列表
+                    } else {
+                        alert("保存失败，后端出错了");
+                    }
+                } catch(e) { 
+                    alert("网络错误，保存失败"); 
+                }
+            };
+
+            // 3. 删除 (DELETE)
+            const deleteGoal = async (id) => {
+                if(!confirm('确定删除这个目标吗？')) return;
+                try {
+                    // 发送 POST 请求到 /goals/delete/{id}
+                    const res = await fetch(`${API_BASE}/goals/delete/${id}`, { method: 'POST' });
+                    
+                    if(res.ok) {
+                        loadGoals(); // 刷新
+                    } else {
+                        alert("删除失败");
+                    }
+                } catch(e) { 
+                    alert("网络错误，删除失败"); 
+                }
+            };
+
+            // 打开弹窗逻辑
+            const openModal = (goal = null) => {
+                if(goal) {
+                    // 如果传了 goal，说明是“修改”，复制一份数据到表单
+                    form.value = { ...goal };
+                } else {
+                    // 没传就是“新建”，清空表单
+                    form.value = { id: null, title: '', currentVal: 0, targetVal: 100, unit: '' };
+                }
+                showModal.value = true;
+            };
+
+            // 计算进度条百分比
+            const getPercent = (goal) => {
+                if(!goal.targetVal) return 0;
+                let p = (goal.currentVal / goal.targetVal) * 100;
+                return p > 100 ? 100 : p.toFixed(1);
+            };
+
+            onMounted(loadGoals);
+
+            return { 
+                daysInLove, goals, loading, showModal, form, 
+                getPercent, openModal, submitForm, deleteGoal 
+            };
+        }
+    }).mount('#app');
+</script>
 </body>
 </html>

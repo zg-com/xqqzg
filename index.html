@@ -3,29 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>阿巴阿巴阿巴 🏠</title>
+    <title>我们的温馨小窝 🏠</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* --- 样式保持不变 --- */
-        :root {
-            --primary: #6c5ce7;
-            --bg: #f8f9fd;
-            --card-bg: #ffffff;
-        }
+        :root { --primary: #6c5ce7; --bg: #f8f9fd; }
         body { margin: 0; padding: 0; font-family: 'PingFang SC', sans-serif; background: var(--bg); color: #2d3436; }
         
-        /* 顶部大卡片 */
         .hero {
             background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
             padding: 40px 20px; color: white; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px;
-            box-shadow: 0 10px 20px rgba(161, 140, 209, 0.3); text-align: center;
+            box-shadow: 0 10px 20px rgba(161, 140, 209, 0.3); text-align: center; position: relative;
         }
         .hero h1 { margin: 0; font-size: 26px; }
         .hero p { opacity: 0.9; margin-top: 10px; font-size: 14px; }
 
+        /* 隐藏的管理入口 */
+        .admin-link {
+            position: absolute; top: 15px; right: 15px;
+            text-decoration: none; font-size: 20px; opacity: 0.5;
+        }
+
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
 
-        /* --- 导航网格 --- */
         .nav-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
             transform: translateY(-30px); margin-bottom: 0;
@@ -40,51 +39,33 @@
         .nav-icon { font-size: 28px; margin-bottom: 5px; }
         .nav-text { font-size: 13px; font-weight: bold; }
 
-        /* --- 进度条卡片 --- */
-        .section-title { font-weight: bold; font-size: 18px; margin: 20px 0 15px; display: flex; justify-content: space-between; align-items: center; }
-        .add-btn { font-size: 12px; background: #dfe6e9; padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+        .section-title { font-weight: bold; font-size: 18px; margin: 20px 0 15px; color: #636e72; }
         
         .goal-card {
             background: white; border-radius: 16px; padding: 20px;
             margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-            position: relative;
         }
-        
         .goal-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; font-weight: bold; }
-        .goal-val { color: var(--primary); }
+        .goal-val { color: var(--primary); font-family: monospace; }
         
-        .progress-bg { height: 10px; background: #f1f2f6; border-radius: 5px; overflow: hidden; position: relative; }
+        .progress-bg { height: 12px; background: #f1f2f6; border-radius: 6px; overflow: hidden; }
         .progress-bar { 
-            height: 100%; background: linear-gradient(90deg, #6c5ce7, #a29bfe); 
-            border-radius: 5px; width: 0%; transition: width 1s ease;
+            height: 100%; border-radius: 6px; width: 0%; 
+            transition: width 1.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+            /* 增加一点光泽感 */
+            background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+            background-size: 40px 40px;
         }
         
-        .goal-footer { 
-            margin-top: 8px; font-size: 12px; color: #b2bec3; 
-            display: flex; justify-content: space-between; 
-        }
-
-        /* 简单的操作按钮 */
-        .action-row { margin-top: 15px; text-align: right; border-top: 1px dashed #eee; padding-top: 10px; }
-        .sm-btn { font-size: 12px; color: #636e72; margin-left: 10px; cursor: pointer; }
-
-        /* --- 弹窗样式 --- */
-        .modal-mask {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
-            z-index: 999;
-        }
-        .modal { background: white; padding: 20px; border-radius: 16px; width: 80%; max-width: 320px; }
-        .form-item { margin-bottom: 15px; }
-        .form-item label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; }
-        .form-item input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .btn-submit { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; }
+        .goal-footer { margin-top: 8px; font-size: 12px; color: #b2bec3; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
 <div id="app">
     <div class="hero">
+        <a href="unit/admin.html" class="admin-link">⚙️</a>
+        
         <h1>Welcome Back ❤️</h1>
         <p>今天是爱你的第 {{ daysInLove }} 天</p>
     </div>
@@ -92,169 +73,81 @@
     <div class="container">
         <div class="nav-grid">
             <a href="unit/coupons.html" class="nav-item">
-                <span class="nav-icon">🎟️</span>
-                <span class="nav-text">兑换券</span>
+                <span class="nav-icon">🎟️</span><span class="nav-text">兑换券</span>
             </a>
             <a href="unit/decision.html" class="nav-item">
-                <span class="nav-icon">🎡</span>
-                <span class="nav-text">帮我选</span>
+                <span class="nav-icon">🎡</span><span class="nav-text">帮我选</span>
             </a>
             <a href="unit/daoqian.html" class="nav-item">
-                <span class="nav-icon">🥺</span>
-                <span class="nav-text">小剧场</span>
+                <span class="nav-icon">🥺</span><span class="nav-text">小剧场</span>
             </a>
         </div>
 
-        <div class="section-title">
-            <span>📈 我们的成长计划</span>
-            <span class="add-btn" @click="openModal()">+ 新建</span>
-        </div>
+        <div class="section-title">📈 我们的成长计划</div>
 
-        <div v-if="goals.length === 0" style="text-align:center; color:#ccc; padding:20px;">
-            加载数据中... (如果没有显示，说明后端没连上，会自动显示演示数据)
-        </div>
+        <div v-if="loading" style="text-align:center;color:#ccc;padding:20px;">数据加载中...</div>
 
         <div class="goal-card" v-for="goal in goals" :key="goal.id">
             <div class="goal-header">
-                <span>{{ goal.title }}</span>
-                <span class="goal-val">{{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}</span>
+                <span style="color:#2d3436">{{ goal.title }}</span>
+                <span class="goal-val" :style="{color: goal.color || '#6c5ce7'}">
+                    {{ goal.currentVal }} / {{ goal.targetVal }} {{ goal.unit }}
+                </span>
             </div>
             
             <div class="progress-bg">
-                <div class="progress-bar" :style="{ width: getPercent(goal) + '%' }"></div>
+                <div class="progress-bar" 
+                     :style="{ 
+                        width: getPercent(goal) + '%', 
+                        backgroundColor: goal.color || '#6c5ce7' 
+                     }">
+                </div>
             </div>
 
             <div class="goal-footer">
-                <span>进度: {{ getPercent(goal) }}%</span>
+                <span>完成度: {{ getPercent(goal) }}%</span>
                 <span>目标: {{ goal.targetVal }} {{ goal.unit }}</span>
             </div>
-
-            <div class="action-row">
-                <span class="sm-btn" @click="openModal(goal)">✏️ 更新进度</span>
-                <span class="sm-btn" @click="deleteGoal(goal.id)" style="color:#ff7675;">🗑️ 删除</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-mask" v-if="showModal" @click.self="showModal=false">
-        <div class="modal">
-            <h3 style="margin-top:0">{{ form.id ? '更新进度' : '新建目标' }}</h3>
-            
-            <div class="form-item">
-                <label>目标名称</label>
-                <input v-model="form.title" placeholder="例如：攒黄金">
-            </div>
-            <div class="form-item">
-                <label>当前数值</label>
-                <input type="number" v-model="form.currentVal" placeholder="0">
-            </div>
-            <div class="form-item">
-                <label>目标总数</label>
-                <input type="number" v-model="form.targetVal" placeholder="100">
-            </div>
-            <div class="form-item">
-                <label>单位</label>
-                <input v-model="form.unit" placeholder="例如：克">
-            </div>
-
-            <button class="btn-submit" @click="submitForm">保存</button>
         </div>
     </div>
 </div>
 
 <script>
-    const { createApp, ref, onMounted, computed } = Vue;
-    // ⚠️ 注意：这里是你后端的地址。
-    // 如果你在本地调试后端，可能需要改成 'http://localhost:8080'
+    const { createApp, ref, onMounted } = Vue;
     const API_BASE = 'https://darlingweb.onrender.com';
 
     createApp({
         setup() {
-            // ✅ 修改点 1：设置恋爱纪念日
-            // 只要把这里改成你们在一起的日期，Vue 会自动拿“今天 - 这个日期”，无论明天还是明年打开，它都会变。
+            // 1. 日期逻辑：纯前端写死，不查数据库
+            // 2025年9月25日
             const startData = new Date('2025-09-25'); 
-            
-            // 计算天数的逻辑（自动获取当前时间 new Date()）
             const now = new Date();
-            // 如果你在 2025-09-25 之前打开，可能会显示负数或0，这里做个绝对值处理或向上取整
-            // (1000毫秒 * 60秒 * 60分 * 24小时) = 一天的毫秒数
+            // 这种计算方式会自动处理跨年、闰年
             const daysInLove = Math.floor((now - startData) / (1000 * 60 * 60 * 24));
+            
+            // 如果还没到这一天，显示 0 或者预热天数
+            const displayDays = daysInLove < 0 ? 0 : daysInLove;
 
             const goals = ref([]);
-            const showModal = ref(false);
-            const form = ref({ id: null, title: '', currentVal: 0, targetVal: 100, unit: '' });
+            const loading = ref(true);
 
-            // 加载列表
             const loadGoals = async () => {
                 try {
                     const res = await fetch(`${API_BASE}/goals/list`);
-                    // 如果后端返回的不是 json 或者报错，会跳到 catch
-                    const data = await res.json();
-                    
-                    if (data && data.length > 0) {
-                        goals.value = data;
-                    } else {
-                        // 如果后端连上了但没数据，我们也抛个错去用演示数据（方便你看效果）
-                        throw new Error("No data");
-                    }
-                } catch(e) { 
-                    console.log("后端连接失败或无数据，使用演示数据", e);
-                    // ✅ 修改点 2：演示数据 (Mock Data)
-                    // 如果连不上数据库，就显示这个，让你先看到效果！
-                    goals.value = [
-                        { id: 1, title: '攒黄金计划 (演示)', currentVal: 2.5, targetVal: 10, unit: 'g' },
-                        { id: 2, title: '恋爱长跑目标 (演示)', currentVal: 105, targetVal: 365, unit: '天' }
-                    ];
-                }
+                    goals.value = await res.json();
+                } catch(e) { console.error("加载失败"); }
+                loading.value = false;
             };
 
-            // 计算百分比
             const getPercent = (goal) => {
                 if(!goal.targetVal) return 0;
                 let p = (goal.currentVal / goal.targetVal) * 100;
-                return p > 100 ? 100 : p.toFixed(1); // 保留1位小数
-            };
-
-            // 打开弹窗
-            const openModal = (goal = null) => {
-                if(goal) {
-                    form.value = { ...goal };
-                } else {
-                    form.value = { id: null, title: '', currentVal: 0, targetVal: 100, unit: '' };
-                }
-                showModal.value = true;
-            };
-
-            // 提交保存
-            const submitForm = async () => {
-                try {
-                    await fetch(`${API_BASE}/goals/save`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(form.value)
-                    });
-                    showModal.value = false;
-                    loadGoals(); 
-                } catch(e) { 
-                    alert('保存失败（可能是后端还没连上数据库），但你可以看到演示效果'); 
-                }
-            };
-
-            // 删除
-            const deleteGoal = async (id) => {
-                if(!confirm('确定删除这个目标吗？')) return;
-                try {
-                    await fetch(`${API_BASE}/goals/delete/${id}`, { method: 'POST' });
-                    loadGoals();
-                } catch(e) { alert('删除失败'); }
+                return p > 100 ? 100 : p.toFixed(1);
             };
 
             onMounted(loadGoals);
 
-            return { 
-                daysInLove, goals, showModal, form, 
-                getPercent, openModal, submitForm, deleteGoal 
-            };
+            return { daysInLove: displayDays, goals, loading, getPercent };
         }
     }).mount('#app');
 </script>
