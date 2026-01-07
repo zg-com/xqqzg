@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>生理期助手</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/dayjs/1.11.9/dayjs.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/dayjs/1.11.9/locale/zh-cn.min.js"></script>
+    
+    <style>
+        :root {
+            /* 你的颜色喜好 */
+            --main: #ff7979; 
+            --sub: #ffc0cb;
+            --bg: #fff0f3;
+        }
+
+        body { 
+            margin: 0; padding: 0; 
+            font-family: -apple-system, sans-serif;
+            background: var(--bg); height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 顶部导航 */
+        .nav-header {
+            display: flex; justify-content: space-between; align-items: center; padding: 20px; z-index: 20;
+        }
+        .nav-btn { font-size: 24px; padding: 10px 20px; cursor: pointer; color: var(--main); }
+        .current-month {
+            font-size: 18px; font-weight: bold; color: #555;
+            padding: 8px 16px; background: rgba(255,255,255,0.6); border-radius: 20px;
+            display: flex; align-items: center; gap: 5px; cursor: pointer;
+        }
+
+        /* 日历区域 */
+        .calendar-wrapper {
+            flex: 1; background: white;
+            border-top-left-radius: 30px; border-top-right-radius: 30px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            padding: 20px 10px; display: flex; flex-direction: column; position: relative; z-index: 10;
+        }
+
+        .week-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; color: #999; font-size: 12px; margin-bottom: 10px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); align-content: start; row-gap: 8px; flex: 1; }
+
+        .day-cell { position: relative; height: 46px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .day-num {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 16px; font-weight: 500; color: #333; z-index: 2; position: relative;
+            border: 2px solid transparent; transition: 0.2s;
+        }
+
+        /* 状态样式 */
+        .day-cell.selected .day-num { border-color: #333; }
+        .is-period .day-num { background: var(--main); color: white; box-shadow: 0 2px 6px rgba(255, 121, 121, 0.4); }
+        .is-predict .day-num { border: 2px dashed var(--sub); color: var(--main); box-sizing: border-box; }
+        .is-today .day-num::after { content: ''; position: absolute; bottom: 3px; width: 4px; height: 4px; background: #2ed573; border-radius: 50%; }
+
+        /* 跨月/跨日粘连条 */
+        .connector {
+            position: absolute; top: 50%; height: 26px; background: var(--main); opacity: 0.3; transform: translateY(-50%); z-index: 1;
+        }
+        .conn-right { right: 0; width: 50%; }
+        .conn-left { left: 0; width: 50%; }
+        
+        .pred-connector {
+            position: absolute; top: 50%; height: 20px; transform: translateY(-50%); z-index: 1;
+            border-top: 2px dashed var(--sub); border-bottom: 2px dashed var(--sub);
+        }
+        .pred-right { right: 0; width: 50%; }
+        .pred-left { left: 0; width: 50%; }
+
+        /* 底部信息栏 (重写) */
+        .info-panel {
+            background: white; padding: 15px 20px 30px 20px;
+            border-top: 1px solid #f5f5f5; z-index: 30;
+        }
+        
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .info-block { width: 48%; background: #f9f9f9; padding: 10px; border-radius: 12px; }
+        .info-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .info-val { font-size: 18px; font-weight: bold; color: #333; }
+        .info-val.pink { color: var(--main); }
+
+        .btn-row { display: flex; gap: 15px; }
+        .btn {
+            flex: 1; height: 44px; border-radius: 22px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.1s;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-start { background: var(--main); color: white; box-shadow: 0 4px 10px rgba(255, 121, 121, 0.3); }
+        .btn-end { background: #fff; border: 2px solid var(--main); color: var(--main); }
+        .btn-disabled { background: #eee; color: #ccc; box-shadow: none; border: none; }
+
+        /* 抽屉 (缩略日历) */
+        .drawer-mask {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .drawer-mask.open { opacity: 1; pointer-events: auto; }
+        .drawer-content {
+            position: absolute; bottom: 0; width: 100%; height: 75%; background: white; border-radius: 20px 20px 0 0;
+            transform: translateY(100%); transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; flex-direction: column;
+        }
+        .drawer-mask.open .drawer-content { transform: translateY(0); }
+        
+        .drawer-header { padding: 15px; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #eee; position: relative; }
+        .drawer-title { font-size: 18px; font-weight: bold; margin: 0 20px; }
+        
+        .mini-grid { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .mini-month { background: #fdfdfd; border: 1px solid #eee; border-radius: 12px; padding: 10px; cursor: pointer; }
+        .mini-month.active { border-color: var(--main); background: #fff0f1; }
+        .mini-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; text-align: center; }
+        
+        /* 真正的迷你日历格 */
+        .mm-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .mm-day { height: 6px; border-radius: 2px; background: #eee; }
+        .mm-day.p { background: var(--main); } /* 经期颜色 */
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="nav-header">
+        <div class="nav-btn" @click="changeMonth(-1)">⬅️</div>
+        <div class="current-month" @click="openDrawer">
+            {{ currentYear }}年 {{ currentMonth + 1 }}月 ▼
+        </div>
+        <div class="nav-btn" @click="changeMonth(1)">➡️</div>
+    </div>
+
+    <div class="calendar-wrapper">
+        <div class="week-header">
+            <span v-for="d in ['日','一','二','三','四','五','六']">{{d}}</span>
+        </div>
+        <div class="days-grid">
+            <div v-for="n in startPadding" :key="'pad-'+n"></div>
+            <div class="day-cell" v-for="day in daysInMonth" :key="day.dateStr"
+                 :class="{'selected': day.isSelected, 'is-period': day.isPeriod, 'is-predict': day.isPredict, 'is-today': day.isToday}"
+                 @click="selectDay(day)">
+                
+                <div v-if="day.connectLeft" class="connector conn-left"></div>
+                <div v-if="day.connectRight" class="connector conn-right"></div>
+                <div v-if="day.predictConnectLeft" class="pred-connector pred-left"></div>
+                <div v-if="day.predictConnectRight" class="pred-connector pred-right"></div>
+
+                <div class="day-num">{{ day.num }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <div class="info-row">
+            <div class="info-block">
+                <div class="info-label">距离预测经期</div>
+                <div class="info-val pink">{{ daysUntilText }}</div>
+            </div>
+            <div class="info-block">
+                <div class="info-label">周期 (ZG计算法)</div>
+                <div class="info-val">{{ config.intervalDays || 20 }} 天</div>
+            </div>
+        </div>
+
+        <div class="btn-row" v-if="canEdit">
+            <button class="btn btn-start" @click="setPeriodStart">经期开始</button>
+            <button class="btn btn-end" @click="setPeriodEnd">经期结束</button>
+        </div>
+        <div v-else style="text-align:center; color:#ccc; padding:10px;">
+            未来日期仅供预测，不可操作
+        </div>
+    </div>
+
+    <div class="drawer-mask" :class="{open: showDrawer}" @click.self="showDrawer = false">
+        <div class="drawer-content">
+            <div class="drawer-header">
+                <div class="nav-btn" @click="drawerYear--">⬅️</div>
+                <div class="drawer-title">{{ drawerYear }}年</div>
+                <div class="nav-btn" @click="drawerYear++">➡️</div>
+            </div>
+            <div class="mini-grid">
+                <div class="mini-month" v-for="m in 12" :key="m" @click="jumpToMonth(m)"
+                     :class="{active: currentYear === drawerYear && (currentMonth + 1) === m}">
+                    <div class="mini-title">{{ m }}月</div>
+                    <div class="mm-days">
+                        <div class="mm-day" v-for="d in getMiniDays(drawerYear, m)" 
+                             :class="{p: d.isPeriod}" :style="{opacity: d.isEmpty ? 0 : 1}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 错误检测
+    if (typeof dayjs === 'undefined') {
+        alert("资源加载中，请稍后...");
+    } else {
+        dayjs.locale('zh-cn');
+    }
+
+    const { createApp, ref, computed, onMounted } = Vue;
+    const API_BASE = 'https://darlingweb.onrender.com';
+
+    createApp({
+        setup() {
+            const currentObj = ref(dayjs());
+            const selectedDate = ref(dayjs());
+            const records = ref([]);
+            // 这里默认值给8天，让第一次加载不查库时也符合你的直觉
+            const config = ref({ periodLength: 8, intervalDays: 20 });
+            const showDrawer = ref(false);
+            const drawerYear = ref(dayjs().year());
+
+            // 初始化
+            const init = async () => {
+                try {
+                    // 并行加载，加快速度
+                    const [cfgRes, recRes] = await Promise.all([
+                        fetch(`${API_BASE}/period/config`),
+                        fetch(`${API_BASE}/period/list`)
+                    ]);
+                    
+                    if(cfgRes.ok) config.value = await cfgRes.json();
+                    if(recRes.ok) records.value = await recRes.json();
+                } catch(e) { console.error(e); }
+            };
+            onMounted(init);
+
+            // --- 计算属性 ---
+            const currentYear = computed(() => currentObj.value.year());
+            const currentMonth = computed(() => currentObj.value.month());
+            const daysCount = computed(() => currentObj.value.daysInMonth());
+            const startPadding = computed(() => currentObj.value.startOf('month').day());
+            const canEdit = computed(() => selectedDate.value.isBefore(dayjs().add(1, 'day'), 'day'));
+
+            // 预测下次：最近一次结束时间 + 间隔
+            const nextPeriodStart = computed(() => {
+                if (!records.value || records.value.length === 0) return null;
+                // records 已经是倒序的
+                const lastRecord = records.value[0]; 
+                const lastEnd = dayjs(lastRecord.endDate);
+                const interval = config.value.intervalDays || 20;
+                return lastEnd.add(interval, 'day');
+            });
+
+            const daysUntilText = computed(() => {
+                if (!nextPeriodStart.value) return "--";
+                const diff = nextPeriodStart.value.diff(selectedDate.value, 'day');
+                if (diff === 0) return "就是今天";
+                if (diff < 0) return "推迟 " + Math.abs(diff) + "天";
+                return diff + " 天";
+            });
+
+            // 判断某天是否在记录范围内
+            const checkIsPeriod = (d) => {
+                return records.value.some(r => {
+                    const s = dayjs(r.startDate);
+                    const e = dayjs(r.endDate);
+                    return (d.isSame(s) || d.isAfter(s)) && (d.isSame(e) || d.isBefore(e));
+                });
+            };
+
+            const checkIsPredict = (d) => {
+                const start = nextPeriodStart.value;
+                if(!start) return false;
+                if(d.isBefore(dayjs(), 'day')) return false; 
+                const diff = d.diff(start, 'day');
+                // 预测显示的长度
+                const len = config.value.periodLength || 7;
+                return diff >= 0 && diff < len;
+            };
+
+            // 生成日历
+            const daysInMonth = computed(() => {
+                const arr = [];
+                const monthStart = currentObj.value.startOf('month');
+                
+                for (let i = 1; i <= daysCount.value; i++) {
+                    const d = monthStart.date(i);
+                    const isPeriod = checkIsPeriod(d);
+                    const isPredict = checkIsPredict(d);
+
+                    // 粘连检测
+                    const prevD = d.subtract(1, 'day');
+                    const nextD = d.add(1, 'day');
+                    const isPrevPeriod = checkIsPeriod(prevD);
+                    const isNextPeriod = checkIsPeriod(nextD);
+                    const isPrevPredict = checkIsPredict(prevD);
+                    const isNextPredict = checkIsPredict(nextD);
+
+                    arr.push({
+                        num: i,
+                        dateStr: d.format('YYYY-MM-DD'),
+                        dayjsObj: d,
+                        isToday: d.isSame(dayjs(), 'day'),
+                        isSelected: d.isSame(selectedDate.value, 'day'),
+                        isPeriod, isPredict,
+                        connectLeft: isPeriod && isPrevPeriod,
+                        connectRight: isPeriod && isNextPeriod,
+                        predictConnectLeft: isPredict && isPrevPredict,
+                        predictConnectRight: isPredict && isNextPredict
+                    });
+                }
+                return arr;
+            });
+
+            // 迷你日历数据
+            const getMiniDays = (year, month) => {
+                const start = dayjs().year(year).month(month-1).startOf('month');
+                const end = start.endOf('month');
+                const days = [];
+                for(let i=0; i<start.day(); i++) days.push({isEmpty:true});
+                for(let i=1; i<=end.date(); i++) {
+                    const d = start.date(i);
+                    days.push({ isEmpty: false, isPeriod: checkIsPeriod(d) });
+                }
+                return days;
+            };
+
+            // --- 交互 ---
+            const changeMonth = (n) => currentObj.value = currentObj.value.add(n, 'month');
+            const selectDay = (day) => selectedDate.value = day.dayjsObj;
+            
+            const openDrawer = () => { drawerYear.value = currentYear.value; showDrawer.value = true; };
+            const jumpToMonth = (m) => {
+                currentObj.value = currentObj.value.year(drawerYear.value).month(m-1);
+                showDrawer.value = false;
+            };
+
+            // ⚡ 核心优化：智能乐观更新
+            // 在发请求前，自己先改内存里的 records，让界面瞬间变成想要的样子
+            const setPeriodStart = async () => {
+                const clickDate = selectedDate.value;
+                const len = config.value.periodLength || 7;
+                
+                // 1. 寻找附近(未来10天内或包含)的记录进行修改
+                const targetRec = records.value.find(r => {
+                    const s = dayjs(r.startDate);
+                    const e = dayjs(r.endDate);
+                    // 点击处在记录中间，或者点击处在记录开始前10天内
+                    const diff = s.diff(clickDate, 'day'); 
+                    return (clickDate.isAfter(s) && clickDate.isBefore(e)) || (diff >= 0 && diff <= 10);
+                });
+
+                if (targetRec) {
+                    // 模拟修改开始时间
+                    targetRec.startDate = clickDate.format('YYYY-MM-DD');
+                    // 如果改完导致开始比结束还晚，顺便推迟结束
+                    if (dayjs(targetRec.startDate).isAfter(dayjs(targetRec.endDate))) {
+                        targetRec.endDate = clickDate.add(len - 1, 'day').format('YYYY-MM-DD');
+                    }
+                } else {
+                    // 模拟新建
+                    records.value.unshift({
+                        startDate: clickDate.format('YYYY-MM-DD'),
+                        endDate: clickDate.add(len - 1, 'day').format('YYYY-MM-DD')
+                    });
+                }
+                // 强制重排
+                records.value.sort((a,b) => dayjs(b.startDate).diff(dayjs(a.startDate)));
+
+                // 2. 发请求
+                await fetch(`${API_BASE}/period/setStart`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ date: clickDate.format('YYYY-MM-DD') })
+                });
+                // 3. 稳妥起见，刷新真数据
+                init();
+            };
+
+            const setPeriodEnd = async () => {
+                const clickDate = selectedDate.value;
+                
+                // 1. 寻找最近的一个开始时间
+                // 逻辑：找到 startDate <= clickDate 的第一条记录
+                const targetRec = records.value.find(r => {
+                    return !dayjs(r.startDate).isAfter(clickDate);
+                });
+
+                if (targetRec) {
+                    // 模拟修改结束时间
+                    targetRec.endDate = clickDate.format('YYYY-MM-DD');
+                } else {
+                    // 没找到，模拟单日
+                    records.value.unshift({
+                        startDate: clickDate.format('YYYY-MM-DD'),
+                        endDate: clickDate.format('YYYY-MM-DD')
+                    });
+                }
+
+                // 2. 发请求
+                await fetch(`${API_BASE}/period/setEnd`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ date: clickDate.format('YYYY-MM-DD') })
+                });
+                init();
+            };
+
+            return {
+                currentYear, currentMonth, startPadding, daysInMonth,
+                changeMonth, selectDay, canEdit,
+                drawerYear, showDrawer, openDrawer, jumpToMonth, getMiniDays,
+                config, daysUntilText,
+                setPeriodStart, setPeriodEnd
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
