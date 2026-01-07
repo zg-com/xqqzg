@@ -107,18 +107,32 @@
         .mini-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; text-align: center; color: #555; }
         
         /* 迷你格子 */
-        .mm-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-        .mm-day { 
-            height: 20px; display: flex; align-items: center; justify-content: center;
-            font-size: 10px; color: #ccc; border-radius: 50%;
+       /* 迷你格子容器 (负责布局位置) */
+        .mm-days { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 2px; 
+            justify-items: center; /* 关键：让里面的圆圈水平居中 */
         }
+        
+        /* 迷你圆圈本体 (负责形状和颜色) */
+        .mm-day { 
+            width: 20px;   /* 强制固定宽度 */
+            height: 20px;  /* 强制固定高度，确保是正圆 */
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: #ccc; 
+            border-radius: 50%; /* 正圆 */
+            flex-shrink: 0; /* 防止被挤压 */
+        }
+
         /* 迷你样式：经期 */
         .mm-day.p { background: var(--main); color: white; }
-        /* 迷你样式：预测 (虚线框太小看不清，改成浅粉底色+深粉字) */
-        .mm-day.pred { border: 1px solid var(--sub); color: var(--main); }
+        /* 迷你样式：预测 */
+        .mm-day.pred { border: 1px solid var(--sub); color: var(--main); box-sizing: border-box;}
         /* 迷你样式：今天 */
         .mm-day.today { font-weight: bold; color: var(--main); }
         .mm-day.p.today { background: var(--main); color: white; }
+        
     </style>
 </head>
 <body>
