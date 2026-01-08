@@ -127,7 +127,7 @@
     </div>
 
     <div class="combo-text" :class="{active: showComboAnim}" :key="comboCount">
-        <i>🔥</i> Combo x{{ comboCount }}
+        <i>🔥</i> 连击 x{{ comboCount }}
     </div>
 
     <div class="modal-overlay" :class="{show: showRoleSelect}">
@@ -256,11 +256,11 @@
 
                 const container = document.getElementById('game-container');
                 container.innerHTML = ''; 
-                const width = Math.min(window.innerWidth, 400); // 400px 宽度
+                const width = Math.min(window.innerWidth, 320); // 400px 宽度
                 const height = window.innerHeight;
 
                 engine = Engine.create();
-                engine.gravity.y = 1.6; 
+                engine.gravity.y = 1.2;  //重力系数，下落速度
 
                 render = Render.create({
                     element: container,
@@ -276,7 +276,7 @@
                 const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.4)' } });
                 const leftWall = Bodies.rectangle(0, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
                 const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
-                const deadLine = Bodies.rectangle(width/2, 120, width, 2, { 
+                const deadLine = Bodies.rectangle(width/2, 300, width, 2, { 
                     isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(235, 77, 75, 0.3)' } 
                 });
 
