@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摸鱼游戏厅 🎮</title>
+    <style>
+        body {
+            margin: 0; padding: 20px;
+            font-family: "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        .header { text-align: center; margin-bottom: 40px; }
+        h1 { color: #2d3436; margin: 0; font-size: 24px; }
+        p { color: #636e72; font-size: 14px; margin-top: 5px; }
+
+        .game-list {
+            width: 100%; max-width: 600px;
+            display: grid; grid-template-columns: 1fr; gap: 20px;
+        }
+
+        .game-card {
+            background: white; border-radius: 20px; padding: 20px;
+            display: flex; align-items: center; text-decoration: none; color: #2d3436;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: 0.3s;
+            border: 2px solid transparent;
+        }
+        .game-card:active { transform: scale(0.98); background: #f8f9fa; }
+
+        .icon-box {
+            width: 60px; height: 60px; border-radius: 15px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 30px; margin-right: 20px; flex-shrink: 0;
+        }
+
+        .info h3 { margin: 0 0 5px 0; font-size: 18px; }
+        .info p { margin: 0; font-size: 12px; color: #999; }
+
+        /* 游戏1主题色 */
+        .card-1 .icon-box { background: #ffeaa7; color: #d63031; }
+        .card-1:hover { border-color: #ffeaa7; }
+
+        /* 游戏2主题色 */
+        .card-2 .icon-box { background: #000; color: #00d2ff; }
+        .card-2:hover { border-color: #00d2ff; }
+
+        .back-btn {
+            margin-top: 40px; padding: 10px 25px;
+            background: white; border-radius: 25px;
+            text-decoration: none; color: #636e72; font-size: 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎮 摸鱼游戏厅</h1>
+        <p>工作累了？来放松一下吧~</p>
+    </div>
+
+    <div class="game-list">
+        <a href="/unit/game.html" class="game-card card-1">
+            <div class="icon-box">🍉</div>
+            <div class="info">
+                <h3>甜蜜合照 (合成版)</h3>
+                <p>轻松解压 | 合成我们的专属照片</p>
+            </div>
+        </a>
+
+        <a href="/unit/dodge.html" class="game-card card-2">
+            <div class="icon-box">⚡️</div>
+            <div class="info">
+                <h3>爱意穿梭 (躲避版)</h3>
+                <p>反应挑战 | 躲避障碍守护爱心</p>
+            </div>
+        </a>
+    </div>
+
+    <a href="/index.html" class="back-btn">⬅️ 返回首页</a>
+
+</body>
+</html>

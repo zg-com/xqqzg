@@ -253,12 +253,12 @@
                 const container = document.getElementById('game-container');
                 container.innerHTML = ''; 
                 // 👇 优化点1：收窄游戏区域，加快游戏节奏 (360px)
-                const width = Math.min(window.innerWidth, 260); 
+                const width = Math.min(window.innerWidth, 360); 
                 const height = window.innerHeight;
 
                 engine = Engine.create();
                 // 👇 优化点2：加大重力，下落更爽
-                engine.gravity.y = 1.6; 
+                engine.gravity.y = 1.2; 
 
                 render = Render.create({
                     element: container,
@@ -277,7 +277,7 @@
                 const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
                 
                 // 死亡线
-                const deadLine = Bodies.rectangle(width/2, 480, width, 2, { 
+                const deadLine = Bodies.rectangle(width/2, 300, width, 2, { 
                     isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(235, 77, 75, 0.3)' } 
                 });
 

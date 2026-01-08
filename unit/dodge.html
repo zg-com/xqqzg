@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>极速穿梭 ⚡️</title>
+    <title>爱意穿梭 ⚡️</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; user-select: none; height: 100vh; height: 100dvh; touch-action: none; }
@@ -13,7 +13,7 @@
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between; padding: 20px 20px 40px 20px; box-sizing: border-box;
+            justify-content: space-between; padding: 20px 20px 60px 20px; box-sizing: border-box;
         }
 
         .top-bar {
@@ -25,16 +25,13 @@
             font-size: 32px; color: #fff; font-weight: 900; 
             text-shadow: 0 0 10px #00d2ff; font-style: italic; line-height: 1;
         }
-        /* 血条样式 */
-        .lives-display {
-            font-size: 24px; margin-top: 5px; letter-spacing: 2px;
-        }
+        .lives-display { font-size: 24px; margin-top: 5px; letter-spacing: 2px; }
 
-        .btn-rank {
+        .btn-rank, .btn-back {
             pointer-events: auto; background: rgba(255,255,255,0.1); 
             border: 1px solid rgba(255,255,255,0.3); color: white;
             padding: 8px 16px; border-radius: 20px; backdrop-filter: blur(5px);
-            font-weight: bold; cursor: pointer;
+            font-weight: bold; cursor: pointer; text-decoration: none; font-size: 14px;
         }
 
         /* 弹窗通用 */
@@ -83,11 +80,15 @@
                     <span v-for="n in 3" :key="n">{{ n <= lives ? '❤️' : '🖤' }}</span>
                 </div>
             </div>
-            <button class="btn-rank" @click="openRank">🏆 排行榜</button>
+            <div>
+                <a href="/unit/games.html" class="btn-back" style="margin-right:10px">退出</a>
+                <button class="btn-rank" @click="openRank">🏆 排行</button>
+            </div>
         </div>
         
         <div style="text-align:center; color:rgba(255,255,255,0.4); font-size:12px;">
-            左右滑动躲避障碍
+            <div style="margin-bottom:5px">▲</div>
+            手指在这里左右滑动，战机不会被挡住哦
         </div>
     </div>
 
@@ -105,7 +106,7 @@
             <div class="big-score">{{ score }}</div>
             <p style="color:#808e9b; margin-bottom: 20px;">战绩已自动上传</p>
             <button class="role-btn" style="background:#00d2ff; color:black; border:none" @click="restart">再次出击 ⚡️</button>
-            <button class="role-btn" style="border-color:#808e9b; color:#808e9b" @click="openRank">查看排行</button>
+            <a href="/unit/games.html" class="role-btn" style="border-color:#808e9b; color:#808e9b; text-decoration:none; box-sizing:border-box;">返回大厅</a>
         </div>
     </div>
 
@@ -134,7 +135,7 @@
         setup() {
             // 状态
             const score = ref(0);
-            const lives = ref(3); // 🔴 新增：3条命
+            const lives = ref(3);
             const isGameOver = ref(false);
             const showRoleSelect = ref(false);
             const showRank = ref(false);
@@ -148,12 +149,9 @@
             let lastTime = 0;
             let gameSpeed = 5; 
             let shake = 0;
-            
-            // 无敌状态
             let isInvincible = false;
             let invincibleTimer = 0;
 
-            // 实体
             const player = { x: 0, y: 0, size: 20, color: '#00d2ff' };
             let enemies = [];
             let bonuses = [];
@@ -169,22 +167,26 @@
                 resize();
                 window.addEventListener('resize', resize);
                 
+                // 绑定触摸和鼠标事件
                 canvas.addEventListener('mousemove', handleInput);
                 canvas.addEventListener('touchmove', handleInput, { passive: false });
-                
+                canvas.addEventListener('touchstart', handleInput, { passive: false });
+
                 startGame();
             };
 
             const resize = () => {
                 w = canvas.width = window.innerWidth;
                 h = canvas.height = window.innerHeight;
-                player.y = h - 120; // 稍微往上提一点，防手指遮挡
+                // 👇 优化点1：飞机位置上移到屏幕 75% 的位置
+                // 这样手指在底部滑动时，飞机在上方，完全不会被遮挡
+                player.y = h * 0.75; 
                 player.x = w / 2;
             };
 
             const handleInput = (e) => {
                 if (isGameOver.value) return;
-                e.preventDefault();
+                e.preventDefault(); // 防止滚动
                 let clientX;
                 if (e.touches) {
                     clientX = e.touches[0].clientX;
@@ -197,8 +199,8 @@
             const startGame = () => {
                 isGameOver.value = false;
                 score.value = 0;
-                lives.value = 3; // 重置血量
-                gameSpeed = 5; // 🔴 初始速度降低
+                lives.value = 3;
+                gameSpeed = 5; 
                 enemies = [];
                 bonuses = [];
                 particles = [];
@@ -227,23 +229,24 @@
 
             const loop = (time) => {
                 if (isGameOver.value) return;
-                
-                // 处理无敌时间
-                if (isInvincible) {
-                    if (time > invincibleTimer) isInvincible = false;
-                }
+                if (isInvincible && time > invincibleTimer) isInvincible = false;
 
                 lastTime = time;
 
                 // 1. 逻辑更新
-                player.x += (player.targetX - player.x) * 0.15; // 稍微调低灵敏度，更平滑
+                player.x += (player.targetX - player.x) * 0.15;
                 player.x = Math.max(player.size, Math.min(w - player.size, player.x));
 
-                // 🔴 难度平滑：每200分加一点点速度，上限限制
+                // 速度随分数缓慢增加
                 gameSpeed = 5 + Math.min(8, Math.floor(score.value / 200) * 0.5);
 
+                // 👇 优化点2：手机端降低密度
+                // 如果屏幕宽度小于 600px (手机)，生成概率降低 40%
+                let spawnRate = 0.04;
+                if (w < 600) spawnRate = 0.025; 
+
                 // 生成敌人
-                if (Math.random() < 0.04 + (score.value * 0.00005)) {
+                if (Math.random() < spawnRate + (score.value * 0.00005)) {
                     const size = Math.random() * 25 + 15;
                     enemies.push({
                         x: Math.random() * (w - size * 2) + size,
@@ -289,12 +292,12 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fillRect(-10, -10, w+20, h+20);
 
-                // 🔴 玩家绘制 (受伤时闪烁)
                 if (!isInvincible || Math.floor(Date.now() / 100) % 2 === 0) {
                     ctx.shadowBlur = 20;
                     ctx.shadowColor = player.color;
                     ctx.fillStyle = player.color;
                     ctx.beginPath();
+                    // 画飞机
                     ctx.moveTo(player.x, player.y - player.size);
                     ctx.lineTo(player.x - player.size, player.y + player.size);
                     ctx.lineTo(player.x + player.size, player.y + player.size);
@@ -302,7 +305,6 @@
                     ctx.shadowBlur = 0;
                 }
 
-                // 敌人
                 ctx.fillStyle = '#ff3f34';
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#ff3f34';
@@ -312,13 +314,11 @@
                     ctx.fill();
                 });
 
-                // 奖励
                 ctx.fillStyle = '#fffa65';
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = '#fffa65';
                 bonuses.forEach(b => {
                     ctx.beginPath();
-                    // 画菱形
                     ctx.moveTo(b.x, b.y - b.size);
                     ctx.lineTo(b.x + b.size, b.y);
                     ctx.lineTo(b.x, b.y + b.size);
@@ -327,7 +327,6 @@
                 });
                 ctx.shadowBlur = 0;
 
-                // 粒子
                 particles.forEach(p => {
                     ctx.globalAlpha = p.life;
                     ctx.fillStyle = p.color;
@@ -350,27 +349,24 @@
             };
 
             const checkCollisions = () => {
-                // 🔴 优化判定范围：只有距离小于 70% 半径和才算撞到 (擦弹不算)
                 const hitScale = 0.7; 
                 const pR = player.size; 
 
-                // 撞敌人
                 if (!isInvincible) {
                     for (let i = enemies.length - 1; i >= 0; i--) {
                         let e = enemies[i];
                         const dx = player.x - e.x;
-                        const dy = player.y - e.y; // 这里用玩家重心，不是顶部
+                        const dy = player.y - e.y;
                         const dist = Math.sqrt(dx*dx + dy*dy);
                         
                         if (dist < (pR + e.size) * hitScale) {
                             takeDamage();
-                            enemies.splice(i, 1); // 撞到的敌人消失
-                            return; // 一帧只受一次伤
+                            enemies.splice(i, 1); 
+                            return; 
                         }
                     }
                 }
 
-                // 吃奖励 (吸附范围大一点，方便吃)
                 const bonusScale = 1.2;
                 for (let i = bonuses.length - 1; i >= 0; i--) {
                     const b = bonuses[i];
@@ -385,19 +381,15 @@
                 }
             };
 
-            // 🔴 受伤逻辑
             const takeDamage = () => {
                 lives.value--;
                 shake = 15;
-                createExplosion(player.x, player.y, '#ff3f34', 20); // 红色爆炸
-                
-                // 手机震动
+                createExplosion(player.x, player.y, '#ff3f34', 20); 
                 if (navigator.vibrate) navigator.vibrate(200);
 
                 if (lives.value <= 0) {
                     gameOver();
                 } else {
-                    // 开启无敌 (1.5秒)
                     isInvincible = true;
                     invincibleTimer = performance.now() + 1500;
                 }
@@ -407,7 +399,7 @@
                 isGameOver.value = true;
                 cancelAnimationFrame(animationId);
                 shake = 30;
-                createExplosion(player.x, player.y, '#00d2ff', 50, 2); // 玩家大爆炸
+                createExplosion(player.x, player.y, '#00d2ff', 50, 2); 
                 if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
                 submitScore();
             };
