@@ -7,10 +7,29 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background: #ffeaa7; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; user-select: none; -webkit-tap-highlight-color: transparent;}
+        body { 
+            margin: 0; padding: 0; 
+            background: linear-gradient(-45deg, #e0eafc, #cfdef3, #f5f7fa, #eef2f3);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden; 
+            font-family: "Microsoft YaHei", sans-serif; 
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent;
+            /* 适配手机高度 */
+            height: 100vh;
+            height: 100dvh; 
+            display: flex; flex-direction: column;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
         
         #game-container {
-            position: relative; width: 100%; height: 100vh;
+            position: relative; width: 100%; flex: 1;
             display: flex; justify-content: center; align-items: center;
         }
 
@@ -21,47 +40,50 @@
             padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 10;
         }
         .score-box {
-            background: rgba(255,255,255,0.9); padding: 5px 15px;
-            border-radius: 20px; font-weight: bold; color: #d63031; font-size: 18px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);
+            padding: 5px 15px; border-radius: 20px; font-weight: bold; color: #57606f; font-size: 18px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8);
         }
         .btn-rank {
             background: #0984e3; color: white; padding: 8px 15px;
             border-radius: 20px; font-size: 14px; pointer-events: auto; cursor: pointer;
             border: none; font-weight: bold; box-shadow: 0 4px 10px rgba(9, 132, 227, 0.3);
+            transition: 0.2s;
         }
+        .btn-rank:active { transform: scale(0.95); }
 
-        /* 连击特效文字 */
+        /* 连击特效 */
         .combo-text {
-            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0);
-            font-size: 40px; font-weight: 900; color: #ff7675;
-            text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff;
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            font-size: 40px; font-weight: 900; 
+            color: #ff9f43; -webkit-text-stroke: 2px #fff;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
             pointer-events: none; z-index: 20;
             transition: transform 0.1s; opacity: 0;
         }
         .combo-text.active {
-            animation: popCombo 0.5s ease-out;
+            animation: popCombo 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         @keyframes popCombo {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            30% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
             100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
         }
 
-        /* 通用弹窗 */
+        /* 弹窗通用 */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 99;
-            display: none; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.6); z-index: 99;
+            backdrop-filter: blur(3px); display: none; justify-content: center; align-items: center;
         }
         .modal-overlay.show { display: flex; }
         .card {
             background: white; width: 80%; max-width: 320px; padding: 25px; 
-            border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            position: relative;
+            border-radius: 20px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            position: relative; animation: slideUp 0.3s ease;
         }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        /* 角色选择按钮 */
         .role-btn {
             display: block; width: 100%; margin: 10px 0; padding: 15px;
             border: 2px solid #eee; border-radius: 12px; background: white;
@@ -71,15 +93,15 @@
         .role-btn.boy { border-color: #74b9ff; color: #0984e3; }
         .role-btn.girl { border-color: #ff7675; color: #d63031; }
 
-        /* 排行榜样式 */
         .rank-list {
             list-style: none; padding: 0; text-align: left; max-height: 250px; overflow-y: auto; margin: 10px 0;
         }
         .rank-item {
-            display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px dashed #eee;
+            display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px dashed #f1f2f6;
+            font-size: 15px;
         }
         .rank-close {
-            position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #aaa;
+            position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #ccc;
         }
     </style>
 </head>
@@ -94,7 +116,7 @@
     </div>
 
     <div class="combo-text" :class="{active: showComboAnim}" :key="comboCount">
-        Combo x{{ comboCount }}!
+        <i>🔥</i> Combo x{{ comboCount }}
     </div>
 
     <div class="modal-overlay" :class="{show: showRoleSelect}">
@@ -110,7 +132,7 @@
         <div class="card">
             <h2>游戏结束</h2>
             <p style="font-size: 32px; color:#d63031; font-weight:bold; margin:10px 0;">{{ Math.floor(currentScore) }}</p>
-            <p style="color:#666">成绩已自动上传到排行榜</p>
+            <p style="color:#666; font-size:14px;">成绩已自动上传</p>
             <button class="role-btn" style="background:#00b894; color:white; border:none;" @click="restart">再来一局 🔥</button>
             <button class="role-btn" @click="openRank">查看家庭地位 👑</button>
         </div>
@@ -126,10 +148,10 @@
                         <span v-if="index==0">🥇</span>
                         <span v-else-if="index==1">🥈</span>
                         <span v-else-if="index==2">🥉</span>
-                        <span v-else>{{ index + 1 }}.</span>
+                        <span v-else style="color:#999; width:20px; display:inline-block">{{ index + 1 }}.</span>
                         {{ item.playerName }}
                     </span>
-                    <span style="font-weight:bold; color:#d63031">{{ item.score }}</span>
+                    <span style="font-weight:bold; color:#57606f">{{ item.score }}</span>
                 </li>
             </ul>
         </div>
@@ -143,55 +165,57 @@
 
     createApp({
         setup() {
-            // 状态变量
             const currentScore = ref(0);
             const isGameOver = ref(false);
             const showRoleSelect = ref(false);
             const showRank = ref(false);
             const rankList = ref([]);
-            const currentPlayer = ref(localStorage.getItem('darling_player_name') || ''); // 读取缓存名字
+            const currentPlayer = ref(localStorage.getItem('darling_player_name') || '');
             
-            // 连击系统
             const comboCount = ref(0);
             const showComboAnim = ref(false);
             let lastMergeTime = 0;
 
-            // 游戏引擎变量
             let engine, render;
-            let currentBall = null; // 当前顶部的小球
-            let isDropping = false; // 是否正在掉落（稍微限制防止误触）
+            let currentBall = null; 
+            let isDropping = false;
 
-            // 升级：更多的小球类型 (11级)
+            // ⚡️ 16个等级！从 2分 到 65536分
+            // 半径 (r) 微调过，防止后期球太大
             const ballTypes = [
-                { r: 20, color: '#a29bfe', score: 2 },    // Lv0: 紫
-                { r: 30, color: '#74b9ff', score: 4 },    // Lv1: 蓝
-                { r: 40, color: '#81ecec', score: 8 },    // Lv2: 青
-                { r: 50, color: '#55efc4', score: 16 },   // Lv3: 绿
-                { r: 60, color: '#ffeaa7', score: 32 },   // Lv4: 黄
-                { r: 70, color: '#fab1a0', score: 64 },   // Lv5: 橙
-                { r: 80, color: '#ff7675', score: 128 },  // Lv6: 红
-                { r: 90, color: '#fd79a8', score: 256 },  // Lv7: 粉
-                { r: 100, color: '#d63031', score: 512 }, // Lv8: 深红
-                { r: 110, color: '#e17055', score: 1024 },// Lv9: 砖红
-                { r: 120, color: '#2d3436', score: 2048 } // Lv10: 终极黑洞
+                { r: 20, color: '#a29bfe', score: 2 },     // Lv0
+                { r: 28, color: '#74b9ff', score: 4 },     // Lv1
+                { r: 36, color: '#81ecec', score: 8 },     // Lv2
+                { r: 44, color: '#55efc4', score: 16 },    // Lv3
+                { r: 52, color: '#ffeaa7', score: 32 },    // Lv4
+                { r: 60, color: '#fab1a0', score: 64 },    // Lv5
+                { r: 68, color: '#ff7675', score: 128 },   // Lv6
+                { r: 76, color: '#fd79a8', score: 256 },   // Lv7
+                { r: 84, color: '#d63031', score: 512 },   // Lv8
+                { r: 92, color: '#e17055', score: 1024 },  // Lv9
+                { r: 100, color: '#2d3436', score: 2048 }, // Lv10 (黑洞)
+                // --- 新增高级球 ---
+                { r: 108, color: '#f9ca24', score: 4096 }, // Lv11 (土豪金)
+                { r: 116, color: '#686de0', score: 8192 }, // Lv12 (紫罗兰)
+                { r: 124, color: '#30336b', score: 16384 },// Lv13 (深海蓝)
+                { r: 132, color: '#badc58', score: 32768 },// Lv14 (荧光绿)
+                { r: 140, color: '#130f40', score: 65536 } // Lv15 (终极宇宙)
             ];
 
-            // 1. 初始化游戏
             const initGame = () => {
-                // 如果没选角色，先选角色
                 if (!currentPlayer.value) {
                     showRoleSelect.value = true;
-                    return; // 暂停初始化，等选完
+                    return; 
                 }
 
                 const container = document.getElementById('game-container');
-                container.innerHTML = ''; // 清空上一局
-                const width = Math.min(window.innerWidth, 450); // 适配手机宽
+                container.innerHTML = ''; 
+                // 适配全屏
+                const width = Math.min(window.innerWidth, 450); 
                 const height = window.innerHeight;
 
                 engine = Engine.create();
-                // 调整重力，让球掉快点
-                engine.gravity.y = 1.2; 
+                engine.gravity.y = 1.3; 
 
                 render = Render.create({
                     element: container,
@@ -204,69 +228,62 @@
                     }
                 });
 
-                // 边界
-                const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: '#b2bec3' } });
-                const leftWall = Bodies.rectangle(0, height/2, 10, height, { isStatic: true, render: { fillStyle: '#dfe6e9' } });
-                const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: '#dfe6e9' } });
-                const deadLine = Bodies.rectangle(width/2, 120, width, 2, { 
-                    isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(255,0,0,0.2)' } 
+                // 墙体
+                const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.4)' } });
+                const leftWall = Bodies.rectangle(0, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
+                const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
+                // 死亡线稍微上移一点，给大球留点空间
+                const deadLine = Bodies.rectangle(width/2, 150, width, 2, { 
+                    isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(235, 77, 75, 0.3)' } 
                 });
 
                 World.add(engine.world, [ground, leftWall, rightWall, deadLine]);
 
-                // 生成第一个球
                 createNewBall(width);
 
-                // 点击事件 (快速响应)
                 render.canvas.addEventListener('pointerdown', (e) => {
                     if (isGameOver.value || isDropping) return;
                     if (!currentBall) return;
                     
                     isDropping = true;
-
-                    // 1. 获取点击位置X
                     const x = e.offsetX;
                     const safeX = Math.min(Math.max(x, 25), width - 25);
                     
-                    // 2. 瞬间把球移过去
                     Body.setPosition(currentBall, { x: safeX, y: 50 });
-                    
-                    // 3. 释放球
-                    Body.setStatic(currentBall, false); // 让它受重力影响
-                    Body.setVelocity(currentBall, { x: 0, y: 5 }); // 给个初速度让它冲下去
+                    Body.setStatic(currentBall, false);
+                    Body.setVelocity(currentBall, { x: 0, y: 5 }); 
                     currentBall.label = 'Ball';
                     currentBall = null;
 
-                    // 4. 极速生成下一个 (300ms冷却防止误触双击，但体感很快)
+                    // 0.3秒极速冷却
                     setTimeout(() => {
                         createNewBall(width);
                         isDropping = false;
                     }, 300);
                 });
 
-                // 碰撞合成逻辑
                 Events.on(engine, 'collisionStart', handleCollision);
-
-                // 死亡检测
                 Events.on(engine, 'collisionActive', checkGameOver);
 
                 Engine.run(engine);
                 Render.run(render);
             };
 
-            // 生成新球的逻辑 (包含难度递增)
             const createNewBall = (width) => {
-                // 难度控制：分数越高，生成的球可能越大
+                // 难度动态递增：后期不给太小的球，防止堆积
+                let minLevel = 0;
                 let maxLevel = 0;
-                if (currentScore.value > 5000) maxLevel = 3;      // 5000分后可能出绿球
-                else if (currentScore.value > 1000) maxLevel = 2; // 1000分后可能出青球
-                else maxLevel = 1;                                // 刚开始只有紫和蓝
 
-                const level = Math.floor(Math.random() * (maxLevel + 1));
-                
+                if (currentScore.value > 10000) { minLevel=1; maxLevel=4; } // 后期
+                else if (currentScore.value > 5000) { minLevel=0; maxLevel=3; }
+                else if (currentScore.value > 1000) { minLevel=0; maxLevel=2; }
+                else { minLevel=0; maxLevel=1; } // 初期
+
+                const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
                 const type = ballTypes[level];
+                
                 currentBall = Bodies.circle(width / 2, 50, type.r, {
-                    isStatic: true, // 悬停在空中
+                    isStatic: true,
                     label: 'ReadyBall',
                     render: { fillStyle: type.color }
                 });
@@ -274,7 +291,6 @@
                 World.add(engine.world, currentBall);
             };
 
-            // 处理碰撞
             const handleCollision = (event) => {
                 const pairs = event.pairs;
                 pairs.forEach((pair) => {
@@ -282,48 +298,40 @@
                     const bodyB = pair.bodyB;
 
                     if (bodyA.level !== undefined && bodyB.level !== undefined && bodyA.level === bodyB.level) {
-                        if (bodyA.id === bodyB.id) return; // 避免自碰撞
+                        if (bodyA.id === bodyB.id) return; 
 
                         const midX = (bodyA.position.x + bodyB.position.x) / 2;
                         const midY = (bodyA.position.y + bodyB.position.y) / 2;
                         const nextLevel = bodyA.level + 1;
 
                         if (nextLevel < ballTypes.length) {
-                            // 移除旧球
                             World.remove(engine.world, [bodyA, bodyB]);
                             
-                            // 生成新球
                             const newType = ballTypes[nextLevel];
                             const newBall = Bodies.circle(midX, midY, newType.r, {
-                                restitution: 0.5, // 弹性大一点，Q弹
+                                restitution: 0.5,
                                 label: 'Ball',
                                 render: { fillStyle: newType.color }
                             });
                             newBall.level = nextLevel;
                             World.add(engine.world, newBall);
 
-                            // --- 视觉特效：简单的缩放动画模拟Q弹 ---
-                            // 注意：Matter.js 原生缩放会改变物理体积，我们只在这一瞬间缩放一下
-                            // 实际上 restitution=0.5 已经有物理弹性了，这里加震动
+                            if (navigator.vibrate) navigator.vibrate(15); 
 
-                            // --- 1. 手机震动 ---
-                            if (navigator.vibrate) navigator.vibrate(15); // 短促震动
-
-                            // --- 2. 连击计算 ---
+                            // 连击逻辑：>=3 才显示
                             const now = Date.now();
                             if (now - lastMergeTime < 1500) {
                                 comboCount.value++;
                             } else {
-                                comboCount.value = 1; // 连击中断，重新算
+                                comboCount.value = 1; 
                             }
                             lastMergeTime = now;
 
-                            // 触发连击动画
-                            showComboAnim.value = false;
-                            setTimeout(() => showComboAnim.value = true, 10); // 重置动画
+                            if (comboCount.value >= 3) {
+                                showComboAnim.value = false;
+                                setTimeout(() => showComboAnim.value = true, 10);
+                            }
 
-                            // --- 3. 算分 (带连击加成) ---
-                            // 连击加成：每个 Combo 额外加 10%
                             const bonus = 1 + (comboCount.value - 1) * 0.1;
                             currentScore.value += (newType.score * bonus);
                         }
@@ -331,15 +339,12 @@
                 });
             };
 
-            // 死亡检测
             const checkGameOver = (event) => {
                 if(isGameOver.value) return;
                 event.pairs.forEach(pair => {
                     if (pair.bodyA.label === 'DeadLine' || pair.bodyB.label === 'DeadLine') {
                         const ball = pair.bodyA.label === 'Ball' ? pair.bodyA : pair.bodyB;
-                        // 只有当球基本静止，且不在掉落过程中，且在DeadLine上方停留了一段时间
                         if (ball.label === 'Ball' && ball.speed < 0.2 && !isDropping) {
-                            // 简单判断：只要有球停在红线上，就挂了
                             triggerGameOver();
                         }
                     }
@@ -348,21 +353,17 @@
 
             const triggerGameOver = () => {
                 isGameOver.value = true;
-                // 停止渲染更新
                 if(render) render.options.enabled = false;
-                // 自动上传分数
                 submitScore();
             };
 
-            // 角色选择
             const selectRole = (name) => {
                 currentPlayer.value = name;
-                localStorage.setItem('darling_player_name', name); // 记住选择
+                localStorage.setItem('darling_player_name', name); 
                 showRoleSelect.value = false;
-                initGame(); // 开始游戏
+                initGame();
             };
 
-            // 提交分数
             const submitScore = async () => {
                 try {
                     await fetch(`${API_BASE}/game/submit`, {
@@ -389,7 +390,6 @@
             };
 
             onMounted(() => {
-                // 如果有缓存名字，直接开始；否则等选择
                 if (currentPlayer.value) {
                     initGame();
                 } else {
@@ -400,7 +400,7 @@
             return { 
                 currentScore, isGameOver, showRoleSelect, showRank, rankList,
                 selectRole, restart, openRank,
-                comboCount, showComboAnim // 暴露给模板用
+                comboCount, showComboAnim 
             };
         }
     }).mount('#app');
