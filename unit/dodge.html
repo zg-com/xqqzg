@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>爱意穿梭 ⚡️</title>
+    <title>极速穿梭 ⚡️</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; user-select: none; height: 100vh; height: 100dvh; touch-action: none; }
@@ -27,11 +27,12 @@
         }
         .lives-display { font-size: 24px; margin-top: 5px; letter-spacing: 2px; }
 
-        .btn-rank, .btn-back {
+        .btn-rank, .btn-back, .btn-switch {
             pointer-events: auto; background: rgba(255,255,255,0.1); 
             border: 1px solid rgba(255,255,255,0.3); color: white;
-            padding: 8px 16px; border-radius: 20px; backdrop-filter: blur(5px);
-            font-weight: bold; cursor: pointer; text-decoration: none; font-size: 14px;
+            padding: 8px 12px; border-radius: 20px; backdrop-filter: blur(5px);
+            font-weight: bold; cursor: pointer; text-decoration: none; font-size: 13px;
+            margin-left: 5px;
         }
 
         /* 弹窗通用 */
@@ -81,8 +82,9 @@
                 </div>
             </div>
             <div>
-                <a href="/unit/games.html" class="btn-back" style="margin-right:10px">退出</a>
-                <button class="btn-rank" @click="openRank">🏆 排行</button>
+                <button class="btn-switch" @click="switchRole">🔄 换人</button>
+                <a href="/unit/games.html" class="btn-back">退出</a>
+                <button class="btn-rank" @click="openRank">🏆</button>
             </div>
         </div>
         
@@ -167,7 +169,6 @@
                 resize();
                 window.addEventListener('resize', resize);
                 
-                // 绑定触摸和鼠标事件
                 canvas.addEventListener('mousemove', handleInput);
                 canvas.addEventListener('touchmove', handleInput, { passive: false });
                 canvas.addEventListener('touchstart', handleInput, { passive: false });
@@ -178,15 +179,13 @@
             const resize = () => {
                 w = canvas.width = window.innerWidth;
                 h = canvas.height = window.innerHeight;
-                // 👇 优化点1：飞机位置上移到屏幕 75% 的位置
-                // 这样手指在底部滑动时，飞机在上方，完全不会被遮挡
                 player.y = h * 0.75; 
                 player.x = w / 2;
             };
 
             const handleInput = (e) => {
                 if (isGameOver.value) return;
-                e.preventDefault(); // 防止滚动
+                e.preventDefault(); 
                 let clientX;
                 if (e.touches) {
                     clientX = e.touches[0].clientX;
@@ -233,19 +232,15 @@
 
                 lastTime = time;
 
-                // 1. 逻辑更新
                 player.x += (player.targetX - player.x) * 0.15;
                 player.x = Math.max(player.size, Math.min(w - player.size, player.x));
 
-                // 速度随分数缓慢增加
                 gameSpeed = 5 + Math.min(8, Math.floor(score.value / 200) * 0.5);
 
-                // 👇 优化点2：手机端降低密度
-                // 如果屏幕宽度小于 600px (手机)，生成概率降低 40%
+                // 手机端降低密度
                 let spawnRate = 0.04;
                 if (w < 600) spawnRate = 0.025; 
 
-                // 生成敌人
                 if (Math.random() < spawnRate + (score.value * 0.00005)) {
                     const size = Math.random() * 25 + 15;
                     enemies.push({
@@ -256,7 +251,6 @@
                     });
                 }
 
-                // 生成奖励
                 if (Math.random() < 0.03) {
                     bonuses.push({
                         x: Math.random() * (w - 40) + 20,
@@ -279,7 +273,6 @@
 
                 checkCollisions();
 
-                // 2. 画面绘制
                 ctx.save();
                 if (shake > 0) {
                     const dx = (Math.random() - 0.5) * shake;
@@ -297,7 +290,6 @@
                     ctx.shadowColor = player.color;
                     ctx.fillStyle = player.color;
                     ctx.beginPath();
-                    // 画飞机
                     ctx.moveTo(player.x, player.y - player.size);
                     ctx.lineTo(player.x - player.size, player.y + player.size);
                     ctx.lineTo(player.x + player.size, player.y + player.size);
@@ -415,6 +407,14 @@
                 init();
             };
 
+            // 👇 新增：切换角色逻辑
+            const switchRole = () => {
+                if(confirm("确定要切换角色重新开始吗？")) {
+                    localStorage.removeItem('darling_player_name'); // 清除记录
+                    location.reload(); // 刷新页面
+                }
+            };
+
             const submitScore = async () => {
                 try {
                     await fetch(`${API_BASE}/game/submit`, {
@@ -437,11 +437,17 @@
                 } catch(e) {}
             };
 
-            onMounted(init);
+            onMounted(() => {
+                if (currentPlayer.value) {
+                    init();
+                } else {
+                    showRoleSelect.value = true;
+                }
+            });
 
             return { 
                 score, lives, isGameOver, showRoleSelect, showRank, rankList,
-                selectRole, restart, openRank
+                selectRole, restart, openRank, switchRole
             };
         }
     }).mount('#app');

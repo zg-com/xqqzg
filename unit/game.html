@@ -51,6 +51,15 @@
         }
         .btn-rank:active { transform: scale(0.95); }
 
+        /* 切换角色按钮 */
+        .btn-switch {
+            background: #a29bfe; color: white; padding: 8px 15px;
+            border-radius: 20px; font-size: 14px; pointer-events: auto; cursor: pointer;
+            border: none; font-weight: bold; box-shadow: 0 4px 10px rgba(162, 155, 254, 0.3);
+            margin-right: 10px; transition: 0.2s;
+        }
+        .btn-switch:active { transform: scale(0.95); }
+
         /* 连击特效 */
         .combo-text {
             position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%) scale(0);
@@ -111,7 +120,10 @@
 
     <div class="header-ui">
         <div class="score-box">得分: {{ Math.floor(currentScore) }}</div>
-        <button class="btn-rank" @click="openRank">🏆 排行榜</button>
+        <div>
+            <button class="btn-switch" @click="switchRole">🔄 换人</button>
+            <button class="btn-rank" @click="openRank">🏆 排行</button>
+        </div>
     </div>
 
     <div class="combo-text" :class="{active: showComboAnim}" :key="comboCount">
@@ -134,6 +146,7 @@
             <p style="color:#666; font-size:14px;">成绩已自动上传</p>
             <button class="role-btn" style="background:#00b894; color:white; border:none;" @click="restart">再来一局 🔥</button>
             <button class="role-btn" @click="openRank">查看家庭地位 👑</button>
+            <button class="role-btn" style="border:none; color:#999; font-size:14px;" @click="switchRole">切换角色重新开始</button>
         </div>
     </div>
 
@@ -199,9 +212,6 @@
                 { r: 140, color: '#130f40', score: 65536 } 
             ];
 
-            // --- 🎨 核心：生成动态花纹纹理 ---
-            // 这会让球看起来像台球/糖果，有花纹，滚动时能看到旋转
-            // --- 🎨 修复后的纹理生成函数 ---
             const createTexture = (r, color, score) => {
                 const canvas = document.createElement('canvas');
                 const size = r * 2;
@@ -209,23 +219,18 @@
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
 
-                // 1. 定义剪切区域 (关键修复步骤！)
-                // 这会创建一个圆形的“蒙版”，之后画的所有东西都不会超出这个圆
                 ctx.beginPath();
                 ctx.arc(r, r, r, 0, Math.PI * 2);
-                ctx.clip(); // <--- 这一行是重点
+                ctx.clip(); 
 
-                // 2. 画底色
                 ctx.fillStyle = color;
-                ctx.fill(); // 因为已经clip了，直接fill就行
+                ctx.fill();
 
-                // 3. 画高光
                 ctx.beginPath();
                 ctx.arc(r - r*0.3, r - r*0.3, r*0.2, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 ctx.fill();
 
-                // 4. 画装饰条纹
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.beginPath();
                 ctx.moveTo(0, r);
@@ -234,7 +239,6 @@
                 ctx.lineTo(0, size);
                 ctx.fill();
 
-                // 5. 画分数 (放在最后，确保在最上层)
                 ctx.fillStyle = 'rgba(255,255,255,0.9)';
                 ctx.font = `bold ${Math.max(10, r * 0.6)}px Arial`;
                 ctx.textAlign = 'center';
@@ -252,13 +256,11 @@
 
                 const container = document.getElementById('game-container');
                 container.innerHTML = ''; 
-                // 👇 优化点1：收窄游戏区域，加快游戏节奏 (360px)
-                const width = Math.min(window.innerWidth, 360); 
+                const width = Math.min(window.innerWidth, 400); // 400px 宽度
                 const height = window.innerHeight;
 
                 engine = Engine.create();
-                // 👇 优化点2：加大重力，下落更爽
-                engine.gravity.y = 1.2; 
+                engine.gravity.y = 1.6; 
 
                 render = Render.create({
                     element: container,
@@ -271,13 +273,10 @@
                     }
                 });
 
-                // 墙体 (窄边框)
                 const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.4)' } });
                 const leftWall = Bodies.rectangle(0, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
                 const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
-                
-                // 死亡线
-                const deadLine = Bodies.rectangle(width/2, 300, width, 2, { 
+                const deadLine = Bodies.rectangle(width/2, 120, width, 2, { 
                     isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(235, 77, 75, 0.3)' } 
                 });
 
@@ -295,7 +294,7 @@
                     
                     Body.setPosition(currentBall, { x: safeX, y: 50 });
                     Body.setStatic(currentBall, false);
-                    Body.setVelocity(currentBall, { x: 0, y: 10 }); // 给个初速度砸下去
+                    Body.setVelocity(currentBall, { x: 0, y: 10 }); 
                     currentBall.label = 'Ball';
                     currentBall = null;
 
@@ -316,7 +315,6 @@
                 let minLevel = 0;
                 let maxLevel = 0;
 
-                // 动态难度
                 if (currentScore.value > 10000) { minLevel=1; maxLevel=4; } 
                 else if (currentScore.value > 5000) { minLevel=0; maxLevel=3; }
                 else if (currentScore.value > 1000) { minLevel=0; maxLevel=2; }
@@ -329,11 +327,9 @@
                     isStatic: true,
                     label: 'ReadyBall',
                     render: { 
-                        // 使用生成的纹理
                         sprite: {
                             texture: createTexture(type.r, type.color, type.score),
-                            xScale: 1, // 纹理大小正好匹配
-                            yScale: 1
+                            xScale: 1, yScale: 1
                         }
                     }
                 });
@@ -364,8 +360,7 @@
                                 render: { 
                                     sprite: {
                                         texture: createTexture(newType.r, newType.color, newType.score),
-                                        xScale: 1,
-                                        yScale: 1
+                                        xScale: 1, yScale: 1
                                     }
                                 }
                             });
@@ -419,6 +414,14 @@
                 initGame();
             };
 
+            // 👇 新增：切换角色逻辑
+            const switchRole = () => {
+                if(confirm("确定要切换角色重新开始吗？")) {
+                    localStorage.removeItem('darling_player_name'); // 清除记录
+                    location.reload(); // 刷新页面
+                }
+            };
+
             const submitScore = async () => {
                 try {
                     await fetch(`${API_BASE}/game/submit`, {
@@ -454,7 +457,7 @@
 
             return { 
                 currentScore, isGameOver, showRoleSelect, showRank, rankList,
-                selectRole, restart, openRank,
+                selectRole, restart, openRank, switchRole, // 暴露给模板
                 comboCount, showComboAnim 
             };
         }
