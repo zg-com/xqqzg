@@ -8,31 +8,39 @@
     <style>
         body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; user-select: none; height: 100vh; height: 100dvh; touch-action: none; }
         
-        /* 游戏画布 */
         canvas { display: block; width: 100%; height: 100%; }
 
-        /* UI 层 */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between; padding: 20px; box-sizing: border-box;
+            justify-content: space-between; padding: 20px 20px 40px 20px; box-sizing: border-box;
         }
 
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: flex-start; width: 100%;
+        }
+
+        .score-box { text-align: left; }
         .score-display {
             font-size: 32px; color: #fff; font-weight: 900; 
-            text-shadow: 0 0 10px #00d2ff; font-style: italic;
+            text-shadow: 0 0 10px #00d2ff; font-style: italic; line-height: 1;
+        }
+        /* 血条样式 */
+        .lives-display {
+            font-size: 24px; margin-top: 5px; letter-spacing: 2px;
         }
 
         .btn-rank {
             pointer-events: auto; background: rgba(255,255,255,0.1); 
             border: 1px solid rgba(255,255,255,0.3); color: white;
             padding: 8px 16px; border-radius: 20px; backdrop-filter: blur(5px);
+            font-weight: bold; cursor: pointer;
         }
 
         /* 弹窗通用 */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 99; backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.85); z-index: 99; backdrop-filter: blur(8px);
             display: none; justify-content: center; align-items: center; pointer-events: auto;
         }
         .modal-overlay.show { display: flex; }
@@ -53,10 +61,10 @@
         }
         .role-btn:active { background: #00d2ff; color: #000; }
         
-        .big-score { font-size: 48px; color: #ff3f34; margin: 10px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 63, 52, 0.5); }
+        .big-score { font-size: 60px; color: #ff3f34; margin: 10px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 63, 52, 0.5); }
 
         .rank-list { list-style: none; padding: 0; text-align: left; max-height: 250px; overflow-y: auto; color: #d2dae2; }
-        .rank-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #485460; }
+        .rank-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #485460; font-size: 14px;}
         .rank-num { width: 24px; display: inline-block; font-weight: bold; color: #00d2ff; }
         .rank-score { color: #ff3f34; font-weight: bold; }
         .close-btn { position: absolute; top: 15px; right: 15px; color: #808e9b; cursor: pointer; font-size: 24px; }
@@ -68,12 +76,18 @@
     <canvas id="gameCanvas"></canvas>
 
     <div class="ui-layer">
-        <div style="display:flex; justify-content:space-between; width:100%">
-            <div class="score-display">{{ score }}</div>
+        <div class="top-bar">
+            <div class="score-box">
+                <div class="score-display">{{ score }}</div>
+                <div class="lives-display">
+                    <span v-for="n in 3" :key="n">{{ n <= lives ? '❤️' : '🖤' }}</span>
+                </div>
+            </div>
             <button class="btn-rank" @click="openRank">🏆 排行榜</button>
         </div>
-        <div style="text-align:center; color:rgba(255,255,255,0.5); font-size:12px; margin-bottom:20px;">
-            左右滑动控制战机
+        
+        <div style="text-align:center; color:rgba(255,255,255,0.4); font-size:12px;">
+            左右滑动躲避障碍
         </div>
     </div>
 
@@ -87,9 +101,9 @@
 
     <div class="modal-overlay" :class="{show: isGameOver}">
         <div class="card">
-            <h2 style="color:#ff3f34">CRASHED!</h2>
+            <h2 style="color:#ff3f34">GAME OVER</h2>
             <div class="big-score">{{ score }}</div>
-            <p style="color:#808e9b">战绩已上传</p>
+            <p style="color:#808e9b; margin-bottom: 20px;">战绩已自动上传</p>
             <button class="role-btn" style="background:#00d2ff; color:black; border:none" @click="restart">再次出击 ⚡️</button>
             <button class="role-btn" style="border-color:#808e9b; color:#808e9b" @click="openRank">查看排行</button>
         </div>
@@ -120,6 +134,7 @@
         setup() {
             // 状态
             const score = ref(0);
+            const lives = ref(3); // 🔴 新增：3条命
             const isGameOver = ref(false);
             const showRoleSelect = ref(false);
             const showRank = ref(false);
@@ -131,8 +146,12 @@
             let w, h;
             let animationId;
             let lastTime = 0;
-            let gameSpeed = 5; // 初始速度
-            let shake = 0; // 屏幕震动强度
+            let gameSpeed = 5; 
+            let shake = 0;
+            
+            // 无敌状态
+            let isInvincible = false;
+            let invincibleTimer = 0;
 
             // 实体
             const player = { x: 0, y: 0, size: 20, color: '#00d2ff' };
@@ -140,7 +159,6 @@
             let bonuses = [];
             let particles = [];
             
-            // 初始化
             const init = () => {
                 if (!currentPlayer.value) {
                     showRoleSelect.value = true;
@@ -151,18 +169,16 @@
                 resize();
                 window.addEventListener('resize', resize);
                 
-                // 绑定控制
                 canvas.addEventListener('mousemove', handleInput);
                 canvas.addEventListener('touchmove', handleInput, { passive: false });
-                canvas.addEventListener('touchstart', handleInput, { passive: false });
-
+                
                 startGame();
             };
 
             const resize = () => {
                 w = canvas.width = window.innerWidth;
                 h = canvas.height = window.innerHeight;
-                player.y = h - 100;
+                player.y = h - 120; // 稍微往上提一点，防手指遮挡
                 player.x = w / 2;
             };
 
@@ -175,29 +191,29 @@
                 } else {
                     clientX = e.clientX;
                 }
-                // 简单的平滑跟随
                 player.targetX = clientX;
             };
 
             const startGame = () => {
                 isGameOver.value = false;
                 score.value = 0;
-                gameSpeed = 6;
+                lives.value = 3; // 重置血量
+                gameSpeed = 5; // 🔴 初始速度降低
                 enemies = [];
                 bonuses = [];
                 particles = [];
                 player.x = w / 2;
                 player.targetX = w / 2;
                 shake = 0;
+                isInvincible = false;
                 lastTime = performance.now();
                 loop(lastTime);
             };
 
-            // 粒子特效系统
-            const createExplosion = (x, y, color, count = 10) => {
+            const createExplosion = (x, y, color, count = 10, speedMul = 1) => {
                 for(let i=0; i<count; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 5 + 2;
+                    const speed = (Math.random() * 5 + 2) * speedMul;
                     particles.push({
                         x, y,
                         vx: Math.cos(angle) * speed,
@@ -209,24 +225,26 @@
                 }
             };
 
-            // 主循环
             const loop = (time) => {
                 if (isGameOver.value) return;
-                const dt = (time - lastTime) / 16; // delta time correction
+                
+                // 处理无敌时间
+                if (isInvincible) {
+                    if (time > invincibleTimer) isInvincible = false;
+                }
+
                 lastTime = time;
 
                 // 1. 逻辑更新
-                // 玩家移动 (Lerp 插值，手感更丝滑)
-                player.x += (player.targetX - player.x) * 0.2;
-                // 限制边界
+                player.x += (player.targetX - player.x) * 0.15; // 稍微调低灵敏度，更平滑
                 player.x = Math.max(player.size, Math.min(w - player.size, player.x));
 
-                // 难度随分数增加
-                gameSpeed = 6 + Math.floor(score.value / 100) * 0.5;
+                // 🔴 难度平滑：每200分加一点点速度，上限限制
+                gameSpeed = 5 + Math.min(8, Math.floor(score.value / 200) * 0.5);
 
-                // 生成敌人 (红色障碍)
-                if (Math.random() < 0.05 + (score.value * 0.0001)) {
-                    const size = Math.random() * 30 + 20;
+                // 生成敌人
+                if (Math.random() < 0.04 + (score.value * 0.00005)) {
+                    const size = Math.random() * 25 + 15;
                     enemies.push({
                         x: Math.random() * (w - size * 2) + size,
                         y: -50,
@@ -235,21 +253,19 @@
                     });
                 }
 
-                // 生成奖励 (蓝色能量)
-                if (Math.random() < 0.02) {
+                // 生成奖励
+                if (Math.random() < 0.03) {
                     bonuses.push({
                         x: Math.random() * (w - 40) + 20,
                         y: -50,
-                        size: 10,
+                        size: 12,
                         speed: gameSpeed
                     });
                 }
 
-                // 更新物体位置
                 updateEntities(enemies);
                 updateEntities(bonuses);
                 
-                // 粒子更新
                 for (let i = particles.length - 1; i >= 0; i--) {
                     let p = particles[i];
                     p.x += p.vx;
@@ -258,11 +274,9 @@
                     if (p.life <= 0) particles.splice(i, 1);
                 }
 
-                // 碰撞检测
                 checkCollisions();
 
                 // 2. 画面绘制
-                // 震动效果
                 ctx.save();
                 if (shake > 0) {
                     const dx = (Math.random() - 0.5) * shake;
@@ -272,22 +286,23 @@
                     if (shake < 0.5) shake = 0;
                 }
 
-                // 清空画布 (带一点点残影，做出极速感)
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                ctx.fillRect(-10, -10, w+20, h+20); // 覆盖稍微大一点防止震动边缘
+                ctx.fillRect(-10, -10, w+20, h+20);
 
-                // 画玩家 (发光的三角形)
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = player.color;
-                ctx.fillStyle = player.color;
-                ctx.beginPath();
-                ctx.moveTo(player.x, player.y - player.size);
-                ctx.lineTo(player.x - player.size, player.y + player.size);
-                ctx.lineTo(player.x + player.size, player.y + player.size);
-                ctx.fill();
-                ctx.shadowBlur = 0; // 重置
+                // 🔴 玩家绘制 (受伤时闪烁)
+                if (!isInvincible || Math.floor(Date.now() / 100) % 2 === 0) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = player.color;
+                    ctx.fillStyle = player.color;
+                    ctx.beginPath();
+                    ctx.moveTo(player.x, player.y - player.size);
+                    ctx.lineTo(player.x - player.size, player.y + player.size);
+                    ctx.lineTo(player.x + player.size, player.y + player.size);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
 
-                // 画敌人
+                // 敌人
                 ctx.fillStyle = '#ff3f34';
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#ff3f34';
@@ -297,12 +312,13 @@
                     ctx.fill();
                 });
 
-                // 画奖励
+                // 奖励
                 ctx.fillStyle = '#fffa65';
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = '#fffa65';
                 bonuses.forEach(b => {
                     ctx.beginPath();
+                    // 画菱形
                     ctx.moveTo(b.x, b.y - b.size);
                     ctx.lineTo(b.x + b.size, b.y);
                     ctx.lineTo(b.x, b.y + b.size);
@@ -311,7 +327,7 @@
                 });
                 ctx.shadowBlur = 0;
 
-                // 画粒子
+                // 粒子
                 particles.forEach(p => {
                     ctx.globalAlpha = p.life;
                     ctx.fillStyle = p.color;
@@ -334,46 +350,65 @@
             };
 
             const checkCollisions = () => {
-                // 玩家包围盒
-                // 简单圆形碰撞检测
-                const pR = player.size * 0.8; 
+                // 🔴 优化判定范围：只有距离小于 70% 半径和才算撞到 (擦弹不算)
+                const hitScale = 0.7; 
+                const pR = player.size; 
 
                 // 撞敌人
-                for (let e of enemies) {
-                    const dx = player.x - e.x;
-                    const dy = player.y - e.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < pR + e.size) {
-                        gameOver();
-                        return;
+                if (!isInvincible) {
+                    for (let i = enemies.length - 1; i >= 0; i--) {
+                        let e = enemies[i];
+                        const dx = player.x - e.x;
+                        const dy = player.y - e.y; // 这里用玩家重心，不是顶部
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (dist < (pR + e.size) * hitScale) {
+                            takeDamage();
+                            enemies.splice(i, 1); // 撞到的敌人消失
+                            return; // 一帧只受一次伤
+                        }
                     }
                 }
 
-                // 吃奖励
+                // 吃奖励 (吸附范围大一点，方便吃)
+                const bonusScale = 1.2;
                 for (let i = bonuses.length - 1; i >= 0; i--) {
                     const b = bonuses[i];
                     const dx = player.x - b.x;
                     const dy = player.y - b.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < pR + b.size + 10) { // 吸附范围大一点
-                        // 吃到了！
+                    if (dist < (pR + b.size) * bonusScale) {
                         score.value += 10;
                         createExplosion(b.x, b.y, '#fffa65', 5);
-                        shake = 5; // 微微震动
-                        if (navigator.vibrate) navigator.vibrate(10);
                         bonuses.splice(i, 1);
                     }
+                }
+            };
+
+            // 🔴 受伤逻辑
+            const takeDamage = () => {
+                lives.value--;
+                shake = 15;
+                createExplosion(player.x, player.y, '#ff3f34', 20); // 红色爆炸
+                
+                // 手机震动
+                if (navigator.vibrate) navigator.vibrate(200);
+
+                if (lives.value <= 0) {
+                    gameOver();
+                } else {
+                    // 开启无敌 (1.5秒)
+                    isInvincible = true;
+                    invincibleTimer = performance.now() + 1500;
                 }
             };
 
             const gameOver = () => {
                 isGameOver.value = true;
                 cancelAnimationFrame(animationId);
-                shake = 20; // 剧烈震动
-                createExplosion(player.x, player.y, '#00d2ff', 50); // 玩家爆炸
-                if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
-                
-                // 自动提交 (gameType = 2)
+                shake = 30;
+                createExplosion(player.x, player.y, '#00d2ff', 50, 2); // 玩家大爆炸
+                if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
                 submitScore();
             };
 
@@ -396,7 +431,7 @@
                         body: JSON.stringify({
                             playerName: currentPlayer.value,
                             score: score.value,
-                            gameType: 2 // 👈 关键：标记为游戏2
+                            gameType: 2 
                         })
                     });
                 } catch(e) {}
@@ -404,7 +439,6 @@
 
             const openRank = async () => {
                 try {
-                    // 👈 关键：查游戏2的排行
                     const res = await fetch(`${API_BASE}/game/rank?type=2`);
                     rankList.value = await res.json();
                     showRank.value = true;
@@ -414,7 +448,7 @@
             onMounted(init);
 
             return { 
-                score, isGameOver, showRoleSelect, showRank, rankList,
+                score, lives, isGameOver, showRoleSelect, showRank, rankList,
                 selectRole, restart, openRank
             };
         }
