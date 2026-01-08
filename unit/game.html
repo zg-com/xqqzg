@@ -16,7 +16,6 @@
             font-family: "Microsoft YaHei", sans-serif; 
             user-select: none; 
             -webkit-tap-highlight-color: transparent;
-            /* 适配手机高度 */
             height: 100vh;
             height: 100dvh; 
             display: flex; flex-direction: column;
@@ -116,7 +115,7 @@
     </div>
 
     <div class="combo-text" :class="{active: showComboAnim}" :key="comboCount">
-        <i>🔥</i> 连击！ x{{ comboCount }}
+        <i>🔥</i> Combo x{{ comboCount }}
     </div>
 
     <div class="modal-overlay" :class="{show: showRoleSelect}">
@@ -180,27 +179,70 @@
             let currentBall = null; 
             let isDropping = false;
 
-            // ⚡️ 16个等级！从 2分 到 65536分
-            // 半径 (r) 微调过，防止后期球太大
+            // 16个等级配置
             const ballTypes = [
-                { r: 20, color: '#a29bfe', score: 2 },     // Lv0
-                { r: 28, color: '#74b9ff', score: 4 },     // Lv1
-                { r: 36, color: '#81ecec', score: 8 },     // Lv2
-                { r: 44, color: '#55efc4', score: 16 },    // Lv3
-                { r: 52, color: '#ffeaa7', score: 32 },    // Lv4
-                { r: 60, color: '#fab1a0', score: 64 },    // Lv5
-                { r: 68, color: '#ff7675', score: 128 },   // Lv6
-                { r: 76, color: '#fd79a8', score: 256 },   // Lv7
-                { r: 84, color: '#d63031', score: 512 },   // Lv8
-                { r: 92, color: '#e17055', score: 1024 },  // Lv9
-                { r: 100, color: '#2d3436', score: 2048 }, // Lv10 (黑洞)
-                // --- 新增高级球 ---
-                { r: 108, color: '#f9ca24', score: 4096 }, // Lv11 (土豪金)
-                { r: 116, color: '#686de0', score: 8192 }, // Lv12 (紫罗兰)
-                { r: 124, color: '#30336b', score: 16384 },// Lv13 (深海蓝)
-                { r: 132, color: '#badc58', score: 32768 },// Lv14 (荧光绿)
-                { r: 140, color: '#130f40', score: 65536 } // Lv15 (终极宇宙)
+                { r: 20, color: '#a29bfe', score: 2 },     
+                { r: 28, color: '#74b9ff', score: 4 },     
+                { r: 36, color: '#81ecec', score: 8 },     
+                { r: 44, color: '#55efc4', score: 16 },    
+                { r: 52, color: '#ffeaa7', score: 32 },    
+                { r: 60, color: '#fab1a0', score: 64 },    
+                { r: 68, color: '#ff7675', score: 128 },   
+                { r: 76, color: '#fd79a8', score: 256 },   
+                { r: 84, color: '#d63031', score: 512 },   
+                { r: 92, color: '#e17055', score: 1024 },  
+                { r: 100, color: '#2d3436', score: 2048 }, 
+                { r: 108, color: '#f9ca24', score: 4096 }, 
+                { r: 116, color: '#686de0', score: 8192 }, 
+                { r: 124, color: '#30336b', score: 16384 },
+                { r: 132, color: '#badc58', score: 32768 },
+                { r: 140, color: '#130f40', score: 65536 } 
             ];
+
+            // --- 🎨 核心：生成动态花纹纹理 ---
+            // 这会让球看起来像台球/糖果，有花纹，滚动时能看到旋转
+            // --- 🎨 修复后的纹理生成函数 ---
+            const createTexture = (r, color, score) => {
+                const canvas = document.createElement('canvas');
+                const size = r * 2;
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                // 1. 定义剪切区域 (关键修复步骤！)
+                // 这会创建一个圆形的“蒙版”，之后画的所有东西都不会超出这个圆
+                ctx.beginPath();
+                ctx.arc(r, r, r, 0, Math.PI * 2);
+                ctx.clip(); // <--- 这一行是重点
+
+                // 2. 画底色
+                ctx.fillStyle = color;
+                ctx.fill(); // 因为已经clip了，直接fill就行
+
+                // 3. 画高光
+                ctx.beginPath();
+                ctx.arc(r - r*0.3, r - r*0.3, r*0.2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fill();
+
+                // 4. 画装饰条纹
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.beginPath();
+                ctx.moveTo(0, r);
+                ctx.bezierCurveTo(r*0.5, r*0.5, r*1.5, r*1.5, size, r);
+                ctx.lineTo(size, size);
+                ctx.lineTo(0, size);
+                ctx.fill();
+
+                // 5. 画分数 (放在最后，确保在最上层)
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.font = `bold ${Math.max(10, r * 0.6)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(score, r, r);
+
+                return canvas.toDataURL();
+            };
 
             const initGame = () => {
                 if (!currentPlayer.value) {
@@ -210,12 +252,13 @@
 
                 const container = document.getElementById('game-container');
                 container.innerHTML = ''; 
-                // 适配全屏
-                const width = Math.min(window.innerWidth, 450); 
+                // 👇 优化点1：收窄游戏区域，加快游戏节奏 (360px)
+                const width = Math.min(window.innerWidth, 260); 
                 const height = window.innerHeight;
 
                 engine = Engine.create();
-                engine.gravity.y = 1.3; 
+                // 👇 优化点2：加大重力，下落更爽
+                engine.gravity.y = 1.6; 
 
                 render = Render.create({
                     element: container,
@@ -228,12 +271,13 @@
                     }
                 });
 
-                // 墙体
+                // 墙体 (窄边框)
                 const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.4)' } });
                 const leftWall = Bodies.rectangle(0, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
                 const rightWall = Bodies.rectangle(width, height/2, 10, height, { isStatic: true, render: { fillStyle: 'rgba(255,255,255,0.2)' } });
-                // 死亡线稍微上移一点，给大球留点空间
-                const deadLine = Bodies.rectangle(width/2, 150, width, 2, { 
+                
+                // 死亡线
+                const deadLine = Bodies.rectangle(width/2, 480, width, 2, { 
                     isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'rgba(235, 77, 75, 0.3)' } 
                 });
 
@@ -251,11 +295,10 @@
                     
                     Body.setPosition(currentBall, { x: safeX, y: 50 });
                     Body.setStatic(currentBall, false);
-                    Body.setVelocity(currentBall, { x: 0, y: 5 }); 
+                    Body.setVelocity(currentBall, { x: 0, y: 10 }); // 给个初速度砸下去
                     currentBall.label = 'Ball';
                     currentBall = null;
 
-                    // 0.3秒极速冷却
                     setTimeout(() => {
                         createNewBall(width);
                         isDropping = false;
@@ -270,14 +313,14 @@
             };
 
             const createNewBall = (width) => {
-                // 难度动态递增：后期不给太小的球，防止堆积
                 let minLevel = 0;
                 let maxLevel = 0;
 
-                if (currentScore.value > 10000) { minLevel=1; maxLevel=4; } // 后期
+                // 动态难度
+                if (currentScore.value > 10000) { minLevel=1; maxLevel=4; } 
                 else if (currentScore.value > 5000) { minLevel=0; maxLevel=3; }
                 else if (currentScore.value > 1000) { minLevel=0; maxLevel=2; }
-                else { minLevel=0; maxLevel=1; } // 初期
+                else { minLevel=0; maxLevel=1; }
 
                 const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
                 const type = ballTypes[level];
@@ -285,7 +328,14 @@
                 currentBall = Bodies.circle(width / 2, 50, type.r, {
                     isStatic: true,
                     label: 'ReadyBall',
-                    render: { fillStyle: type.color }
+                    render: { 
+                        // 使用生成的纹理
+                        sprite: {
+                            texture: createTexture(type.r, type.color, type.score),
+                            xScale: 1, // 纹理大小正好匹配
+                            yScale: 1
+                        }
+                    }
                 });
                 currentBall.level = level;
                 World.add(engine.world, currentBall);
@@ -311,14 +361,19 @@
                             const newBall = Bodies.circle(midX, midY, newType.r, {
                                 restitution: 0.5,
                                 label: 'Ball',
-                                render: { fillStyle: newType.color }
+                                render: { 
+                                    sprite: {
+                                        texture: createTexture(newType.r, newType.color, newType.score),
+                                        xScale: 1,
+                                        yScale: 1
+                                    }
+                                }
                             });
                             newBall.level = nextLevel;
                             World.add(engine.world, newBall);
 
                             if (navigator.vibrate) navigator.vibrate(15); 
 
-                            // 连击逻辑：>=3 才显示
                             const now = Date.now();
                             if (now - lastMergeTime < 1500) {
                                 comboCount.value++;

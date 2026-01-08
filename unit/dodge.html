@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>极速穿梭 ⚡️</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; user-select: none; height: 100vh; height: 100dvh; touch-action: none; }
+        
+        /* 游戏画布 */
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI 层 */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 20px; box-sizing: border-box;
+        }
+
+        .score-display {
+            font-size: 32px; color: #fff; font-weight: 900; 
+            text-shadow: 0 0 10px #00d2ff; font-style: italic;
+        }
+
+        .btn-rank {
+            pointer-events: auto; background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.3); color: white;
+            padding: 8px 16px; border-radius: 20px; backdrop-filter: blur(5px);
+        }
+
+        /* 弹窗通用 */
+        .modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 99; backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; pointer-events: auto;
+        }
+        .modal-overlay.show { display: flex; }
+        .card {
+            background: #1e272e; width: 80%; max-width: 320px; padding: 30px; 
+            border-radius: 20px; text-align: center; border: 1px solid #485460;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.2); animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        h2 { color: #fff; margin: 0 0 20px 0; }
+        
+        .role-btn {
+            display: block; width: 100%; margin: 15px 0; padding: 15px;
+            background: transparent; border: 2px solid #00d2ff; color: #00d2ff;
+            border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer;
+            transition: 0.2s;
+        }
+        .role-btn:active { background: #00d2ff; color: #000; }
+        
+        .big-score { font-size: 48px; color: #ff3f34; margin: 10px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 63, 52, 0.5); }
+
+        .rank-list { list-style: none; padding: 0; text-align: left; max-height: 250px; overflow-y: auto; color: #d2dae2; }
+        .rank-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #485460; }
+        .rank-num { width: 24px; display: inline-block; font-weight: bold; color: #00d2ff; }
+        .rank-score { color: #ff3f34; font-weight: bold; }
+        .close-btn { position: absolute; top: 15px; right: 15px; color: #808e9b; cursor: pointer; font-size: 24px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div style="display:flex; justify-content:space-between; width:100%">
+            <div class="score-display">{{ score }}</div>
+            <button class="btn-rank" @click="openRank">🏆 排行榜</button>
+        </div>
+        <div style="text-align:center; color:rgba(255,255,255,0.5); font-size:12px; margin-bottom:20px;">
+            左右滑动控制战机
+        </div>
+    </div>
+
+    <div class="modal-overlay" :class="{show: showRoleSelect}">
+        <div class="card">
+            <h2>选择驾驶员 🚀</h2>
+            <button class="role-btn" @click="selectRole('👦 王牌机师')">👦 我是哥哥</button>
+            <button class="role-btn" @click="selectRole('👧 宇宙无敌')">👧 我是宝贝</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" :class="{show: isGameOver}">
+        <div class="card">
+            <h2 style="color:#ff3f34">CRASHED!</h2>
+            <div class="big-score">{{ score }}</div>
+            <p style="color:#808e9b">战绩已上传</p>
+            <button class="role-btn" style="background:#00d2ff; color:black; border:none" @click="restart">再次出击 ⚡️</button>
+            <button class="role-btn" style="border-color:#808e9b; color:#808e9b" @click="openRank">查看排行</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" :class="{show: showRank}" @click.self="showRank = false">
+        <div class="card">
+            <span class="close-btn" @click="showRank = false">×</span>
+            <h3>🚀 极速飞行榜</h3>
+            <ul class="rank-list">
+                <li class="rank-item" v-for="(item, index) in rankList" :key="index">
+                    <span>
+                        <span class="rank-num">{{ index + 1 }}</span>
+                        {{ item.playerName }}
+                    </span>
+                    <span class="rank-score">{{ item.score }}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const API_BASE = 'https://darlingweb.onrender.com';
+
+    createApp({
+        setup() {
+            // 状态
+            const score = ref(0);
+            const isGameOver = ref(false);
+            const showRoleSelect = ref(false);
+            const showRank = ref(false);
+            const rankList = ref([]);
+            const currentPlayer = ref(localStorage.getItem('darling_player_name') || '');
+
+            // 游戏核心变量
+            let canvas, ctx;
+            let w, h;
+            let animationId;
+            let lastTime = 0;
+            let gameSpeed = 5; // 初始速度
+            let shake = 0; // 屏幕震动强度
+
+            // 实体
+            const player = { x: 0, y: 0, size: 20, color: '#00d2ff' };
+            let enemies = [];
+            let bonuses = [];
+            let particles = [];
+            
+            // 初始化
+            const init = () => {
+                if (!currentPlayer.value) {
+                    showRoleSelect.value = true;
+                    return;
+                }
+                canvas = document.getElementById('gameCanvas');
+                ctx = canvas.getContext('2d');
+                resize();
+                window.addEventListener('resize', resize);
+                
+                // 绑定控制
+                canvas.addEventListener('mousemove', handleInput);
+                canvas.addEventListener('touchmove', handleInput, { passive: false });
+                canvas.addEventListener('touchstart', handleInput, { passive: false });
+
+                startGame();
+            };
+
+            const resize = () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+                player.y = h - 100;
+                player.x = w / 2;
+            };
+
+            const handleInput = (e) => {
+                if (isGameOver.value) return;
+                e.preventDefault();
+                let clientX;
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                } else {
+                    clientX = e.clientX;
+                }
+                // 简单的平滑跟随
+                player.targetX = clientX;
+            };
+
+            const startGame = () => {
+                isGameOver.value = false;
+                score.value = 0;
+                gameSpeed = 6;
+                enemies = [];
+                bonuses = [];
+                particles = [];
+                player.x = w / 2;
+                player.targetX = w / 2;
+                shake = 0;
+                lastTime = performance.now();
+                loop(lastTime);
+            };
+
+            // 粒子特效系统
+            const createExplosion = (x, y, color, count = 10) => {
+                for(let i=0; i<count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 5 + 2;
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1.0,
+                        color: color,
+                        size: Math.random() * 4 + 2
+                    });
+                }
+            };
+
+            // 主循环
+            const loop = (time) => {
+                if (isGameOver.value) return;
+                const dt = (time - lastTime) / 16; // delta time correction
+                lastTime = time;
+
+                // 1. 逻辑更新
+                // 玩家移动 (Lerp 插值，手感更丝滑)
+                player.x += (player.targetX - player.x) * 0.2;
+                // 限制边界
+                player.x = Math.max(player.size, Math.min(w - player.size, player.x));
+
+                // 难度随分数增加
+                gameSpeed = 6 + Math.floor(score.value / 100) * 0.5;
+
+                // 生成敌人 (红色障碍)
+                if (Math.random() < 0.05 + (score.value * 0.0001)) {
+                    const size = Math.random() * 30 + 20;
+                    enemies.push({
+                        x: Math.random() * (w - size * 2) + size,
+                        y: -50,
+                        size: size,
+                        speed: Math.random() * 2 + gameSpeed
+                    });
+                }
+
+                // 生成奖励 (蓝色能量)
+                if (Math.random() < 0.02) {
+                    bonuses.push({
+                        x: Math.random() * (w - 40) + 20,
+                        y: -50,
+                        size: 10,
+                        speed: gameSpeed
+                    });
+                }
+
+                // 更新物体位置
+                updateEntities(enemies);
+                updateEntities(bonuses);
+                
+                // 粒子更新
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.05;
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                // 碰撞检测
+                checkCollisions();
+
+                // 2. 画面绘制
+                // 震动效果
+                ctx.save();
+                if (shake > 0) {
+                    const dx = (Math.random() - 0.5) * shake;
+                    const dy = (Math.random() - 0.5) * shake;
+                    ctx.translate(dx, dy);
+                    shake *= 0.9;
+                    if (shake < 0.5) shake = 0;
+                }
+
+                // 清空画布 (带一点点残影，做出极速感)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(-10, -10, w+20, h+20); // 覆盖稍微大一点防止震动边缘
+
+                // 画玩家 (发光的三角形)
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = player.color;
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y - player.size);
+                ctx.lineTo(player.x - player.size, player.y + player.size);
+                ctx.lineTo(player.x + player.size, player.y + player.size);
+                ctx.fill();
+                ctx.shadowBlur = 0; // 重置
+
+                // 画敌人
+                ctx.fillStyle = '#ff3f34';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff3f34';
+                enemies.forEach(e => {
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // 画奖励
+                ctx.fillStyle = '#fffa65';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#fffa65';
+                bonuses.forEach(b => {
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y - b.size);
+                    ctx.lineTo(b.x + b.size, b.y);
+                    ctx.lineTo(b.x, b.y + b.size);
+                    ctx.lineTo(b.x - b.size, b.y);
+                    ctx.fill();
+                });
+                ctx.shadowBlur = 0;
+
+                // 画粒子
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+
+                ctx.restore();
+
+                animationId = requestAnimationFrame(loop);
+            };
+
+            const updateEntities = (list) => {
+                for (let i = list.length - 1; i >= 0; i--) {
+                    list[i].y += list[i].speed;
+                    if (list[i].y > h + 50) list.splice(i, 1);
+                }
+            };
+
+            const checkCollisions = () => {
+                // 玩家包围盒
+                // 简单圆形碰撞检测
+                const pR = player.size * 0.8; 
+
+                // 撞敌人
+                for (let e of enemies) {
+                    const dx = player.x - e.x;
+                    const dy = player.y - e.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < pR + e.size) {
+                        gameOver();
+                        return;
+                    }
+                }
+
+                // 吃奖励
+                for (let i = bonuses.length - 1; i >= 0; i--) {
+                    const b = bonuses[i];
+                    const dx = player.x - b.x;
+                    const dy = player.y - b.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < pR + b.size + 10) { // 吸附范围大一点
+                        // 吃到了！
+                        score.value += 10;
+                        createExplosion(b.x, b.y, '#fffa65', 5);
+                        shake = 5; // 微微震动
+                        if (navigator.vibrate) navigator.vibrate(10);
+                        bonuses.splice(i, 1);
+                    }
+                }
+            };
+
+            const gameOver = () => {
+                isGameOver.value = true;
+                cancelAnimationFrame(animationId);
+                shake = 20; // 剧烈震动
+                createExplosion(player.x, player.y, '#00d2ff', 50); // 玩家爆炸
+                if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
+                
+                // 自动提交 (gameType = 2)
+                submitScore();
+            };
+
+            const restart = () => {
+                startGame();
+            };
+
+            const selectRole = (name) => {
+                currentPlayer.value = name;
+                localStorage.setItem('darling_player_name', name);
+                showRoleSelect.value = false;
+                init();
+            };
+
+            const submitScore = async () => {
+                try {
+                    await fetch(`${API_BASE}/game/submit`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            playerName: currentPlayer.value,
+                            score: score.value,
+                            gameType: 2 // 👈 关键：标记为游戏2
+                        })
+                    });
+                } catch(e) {}
+            };
+
+            const openRank = async () => {
+                try {
+                    // 👈 关键：查游戏2的排行
+                    const res = await fetch(`${API_BASE}/game/rank?type=2`);
+                    rankList.value = await res.json();
+                    showRank.value = true;
+                } catch(e) {}
+            };
+
+            onMounted(init);
+
+            return { 
+                score, isGameOver, showRoleSelect, showRank, rankList,
+                selectRole, restart, openRank
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
