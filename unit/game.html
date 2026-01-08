@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>合成大合照 ❤️</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #ffeaa7; overflow: hidden; font-family: sans-serif; }
+        
+        #game-container {
+            position: relative; width: 100%; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* 顶部 UI */
+        .header-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 80px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 10;
+        }
+        .score-box {
+            background: rgba(255,255,255,0.8); padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; color: #d63031; font-size: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .btn-rank {
+            background: #0984e3; color: white; padding: 10px 15px;
+            border-radius: 20px; font-size: 14px; pointer-events: auto; cursor: pointer;
+            text-decoration: none; border: none; font-weight: bold;
+        }
+
+        /* 结束弹窗 */
+        .game-over {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 99;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            display: none; /* 默认隐藏 */
+        }
+        .game-over.show { display: flex; }
+        .card {
+            background: white; width: 80%; padding: 20px; border-radius: 20px; text-align: center;
+        }
+        .input-name {
+            padding: 10px; font-size: 16px; width: 80%; margin: 10px 0;
+            border: 2px solid #eee; border-radius: 8px;
+        }
+        .btn-submit {
+            background: #d63031; color: white; padding: 12px 30px; border: none;
+            border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer;
+        }
+
+        /* 排行榜弹窗 */
+        .rank-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 90;
+            display: none; justify-content: center; align-items: center;
+        }
+        .rank-modal.show { display: flex; }
+        .rank-list {
+            list-style: none; padding: 0; text-align: left; max-height: 200px; overflow-y: auto;
+        }
+        .rank-item {
+            display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee;
+        }
+        .rank-close {
+            position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="game-container"></div>
+
+    <div class="header-ui">
+        <div class="score-box">得分: {{ currentScore }}</div>
+        <button class="btn-rank" @click="showRank = true">🏆 排行榜</button>
+    </div>
+
+    <div class="game-over" :class="{show: isGameOver}">
+        <div class="card">
+            <h2>游戏结束</h2>
+            <p style="font-size: 24px; color:#d63031">{{ currentScore }} 分</p>
+            <p>本次表现真棒！留下大名吧：</p>
+            <input class="input-name" v-model="playerName" placeholder="输入名字 (如: 宝贝)">
+            <button class="btn-submit" @click="submitScore">上传战绩</button>
+            <button style="margin-top:10px; background:transparent; border:none; color:#999" @click="restart">再玩一次</button>
+        </div>
+    </div>
+
+    <div class="rank-modal" :class="{show: showRank}" @click.self="showRank = false">
+        <div class="card" style="position:relative">
+            <span class="rank-close" @click="showRank = false">×</span>
+            <h3>👑 家庭帝位排行榜</h3>
+            <ul class="rank-list">
+                <li class="rank-item" v-for="(item, index) in rankList" :key="index">
+                    <span>
+                        <span v-if="index==0">🥇</span>
+                        <span v-else-if="index==1">🥈</span>
+                        <span v-else-if="index==2">🥉</span>
+                        <span v-else>{{ index + 1 }}.</span>
+                        {{ item.playerName }}
+                    </span>
+                    <span style="font-weight:bold; color:#d63031">{{ item.score }}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const API_BASE = 'https://darlingweb.onrender.com';
+
+    // Matter.js 模块
+    const { Engine, Render, World, Bodies, Body, Events, Composite } = Matter;
+
+    createApp({
+        setup() {
+            const currentScore = ref(0);
+            const isGameOver = ref(false);
+            const playerName = ref('女朋友'); // 默认名字
+            const showRank = ref(false);
+            const rankList = ref([]);
+
+            // 游戏配置
+            let engine, render, runner;
+            // 每一个等级的球的配置 (颜色可以换成图片: render: { sprite: { texture: 'img/1.png' } })
+            const ballTypes = [
+                { r: 20, color: '#ff7979', score: 2 },   // Level 1
+                { r: 30, color: '#badc58', score: 4 },   // Level 2
+                { r: 40, color: '#f6e58d', score: 8 },   // Level 3
+                { r: 50, color: '#ffbe76', score: 16 },  // Level 4
+                { r: 60, color: '#e056fd', score: 32 },  // Level 5
+                { r: 70, color: '#686de0', score: 64 },  // Level 6
+                { r: 80, color: '#30336b', score: 128 }, // Level 7
+                { r: 90, color: '#eb4d4b', score: 256 }, // Level 8 (大西瓜)
+            ];
+
+            let currentBallType = 0; // 当前顶部准备掉落的球类型
+            let isDropping = false; // 防止连点
+
+            const initGame = () => {
+                const container = document.getElementById('game-container');
+                const width = container.clientWidth > 450 ? 450 : container.clientWidth;
+                const height = container.clientHeight;
+
+                // 1. 创建引擎
+                engine = Engine.create();
+                
+                // 2. 创建渲染器
+                render = Render.create({
+                    element: container,
+                    engine: engine,
+                    options: {
+                        width: width,
+                        height: height,
+                        wireframes: false, // 设为 false 才能显示颜色/图片
+                        background: '#ffeaa7'
+                    }
+                });
+
+                // 3. 创建边界 (左右墙和底)
+                const ground = Bodies.rectangle(width/2, height, width, 60, { isStatic: true, render: { fillStyle: '#b2bec3' } });
+                const leftWall = Bodies.rectangle(0, height/2, 20, height, { isStatic: true, render: { fillStyle: '#b2bec3' } });
+                const rightWall = Bodies.rectangle(width, height/2, 20, height, { isStatic: true, render: { fillStyle: '#b2bec3' } });
+                // 顶部的“死亡线”传感器
+                const deadLine = Bodies.rectangle(width/2, 100, width, 2, { 
+                    isStatic: true, isSensor: true, label: 'DeadLine', render: { fillStyle: 'transparent' } 
+                });
+
+                World.add(engine.world, [ground, leftWall, rightWall, deadLine]);
+
+                // 4. 生成顶部待命的小球
+                createReadyBall(width);
+
+                // 5. 点击事件
+                render.canvas.addEventListener('click', (e) => {
+                    if (isDropping || isGameOver.value) return;
+                    isDropping = true;
+
+                    // 获取顶部那个待命的球
+                    const readyBall = engine.world.bodies.find(b => b.label === 'ReadyBall');
+                    if (readyBall) {
+                        // 移动到点击的横坐标位置
+                        const x = e.offsetX; // 获取相对画布的点击位置
+                        // 限制不要出墙
+                        const safeX = Math.min(Math.max(x, 30), width - 30);
+                        Body.setPosition(readyBall, { x: safeX, y: 50 });
+                        
+                        // 让它变为动态物体，开始掉落
+                        Body.setStatic(readyBall, false);
+                        readyBall.label = 'Ball'; // 掉下去就变成普通球了
+                        
+                        // 1秒后生成下一个待命球
+                        setTimeout(() => {
+                            createReadyBall(width);
+                            isDropping = false;
+                        }, 800);
+                    }
+                });
+
+                // 6. 碰撞检测 (合成逻辑)
+                Events.on(engine, 'collisionStart', (event) => {
+                    const pairs = event.pairs;
+                    pairs.forEach((pair) => {
+                        const bodyA = pair.bodyA;
+                        const bodyB = pair.bodyB;
+
+                        // 如果两个球碰在一起，且等级相同
+                        if (bodyA.level !== undefined && bodyB.level !== undefined && bodyA.level === bodyB.level) {
+                            // 且它们不是同一个球（防止极其罕见的bug）
+                            if (bodyA.id === bodyB.id) return;
+
+                            // 找到它们的中点
+                            const midX = (bodyA.position.x + bodyB.position.x) / 2;
+                            const midY = (bodyA.position.y + bodyB.position.y) / 2;
+                            const nextLevel = bodyA.level + 1;
+
+                            // 如果还有下一级
+                            if (nextLevel < ballTypes.length) {
+                                // 移除旧的两个球
+                                World.remove(engine.world, [bodyA, bodyB]);
+                                
+                                // 加分
+                                currentScore.value += ballTypes[bodyA.level].score;
+
+                                // 生成新球
+                                const newBall = createBall(midX, midY, nextLevel, false);
+                                World.add(engine.world, newBall);
+                            }
+                        }
+                    });
+                });
+
+                // 7. 死亡检测 (简化版：如果球堆太高碰到顶线，且速度很慢，就算输)
+                Events.on(engine, 'collisionActive', (event) => {
+                    event.pairs.forEach(pair => {
+                        // 检查是否有物体碰到了 DeadLine
+                        if (pair.bodyA.label === 'DeadLine' || pair.bodyB.label === 'DeadLine') {
+                            const ball = pair.bodyA.label === 'Ball' ? pair.bodyA : pair.bodyB;
+                            // 只有当球基本静止，且不是刚生成的 readyBall 时
+                            if (ball.label === 'Ball' && ball.speed < 0.5 && !isDropping) {
+                                // 游戏结束
+                                gameOver();
+                            }
+                        }
+                    });
+                });
+
+                Engine.run(engine);
+                Render.run(render);
+            };
+
+            // 创建球体辅助函数
+            const createBall = (x, y, level, isStatic) => {
+                const type = ballTypes[level];
+                const ball = Bodies.circle(x, y, type.r, {
+                    isStatic: isStatic,
+                    restitution: 0.3, // 弹性
+                    label: isStatic ? 'ReadyBall' : 'Ball',
+                    render: { fillStyle: type.color } // 这里以后可以加 sprite: { texture: '...' }
+                });
+                ball.level = level; // 绑定等级
+                return ball;
+            };
+
+            const createReadyBall = (width) => {
+                // 随机生成 0~2 级的球作为初始球
+                const level = Math.floor(Math.random() * 3);
+                const ball = createBall(width / 2, 50, level, true);
+                World.add(engine.world, ball);
+            };
+
+            const gameOver = () => {
+                if (isGameOver.value) return;
+                isGameOver.value = true;
+                // 停止物理引擎
+                render.options.enabled = false; 
+            };
+
+            const restart = () => {
+                location.reload(); // 简单粗暴，刷新重来
+            };
+
+            // 获取排行榜
+            const loadRank = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/game/rank`);
+                    rankList.value = await res.json();
+                } catch(e) { console.error(e); }
+            };
+
+            // 提交分数
+            const submitScore = async () => {
+                if (!playerName.value) return alert("请输入名字哦");
+                try {
+                    await fetch(`${API_BASE}/game/submit`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            playerName: playerName.value,
+                            score: currentScore.value
+                        })
+                    });
+                    alert("战绩已上传！");
+                    loadRank(); // 刷新排行榜
+                    showRank.value = true; // 显示排行榜
+                } catch(e) { alert("网络错误"); }
+            };
+
+            onMounted(() => {
+                initGame();
+                loadRank();
+            });
+
+            return { 
+                currentScore, isGameOver, playerName, 
+                showRank, rankList,
+                submitScore, restart 
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
